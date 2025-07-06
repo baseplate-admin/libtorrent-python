@@ -58,19 +58,19 @@ jobs:
               shell: pwsh
               run: |
                   choco install -y cmake --installargs '"ADD_CMAKE_TO_PATH=System"'
-                  choco install -y boost-msvc-14.3 python --version=3.11.4 ninja
+                  choco install -y boost-msvc-14.3 ninja
                   python -m pip install --upgrade wheel setuptools
 
             # ───── WebSocket++ ─────────────────────────────────────────────────────────
-            - name: Install WebSocket++ on Linux/macOS
-              if: runner.os != 'Windows'
+            - name: Install WebSocket++ (All Platforms)
+              shell: bash
               run: |
                   git clone https://github.com/zaphoyd/websocketpp.git
                   cd websocketpp
                   mkdir build && cd build
-                  cmake -G Ninja ..
+                  cmake -G Ninja .. -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/websocketpp-install
                   ninja
-                  sudo ninja install
+                  ninja install
 
             # ───── libtorrent Checkout ──────────────────────────────────────────────────
             - name: Clone libtorrent
@@ -88,10 +88,11 @@ jobs:
                   cmake -G Ninja .. \
                     -DCMAKE_BUILD_TYPE=Release \
                     -DBUILD_TESTING=OFF \
-                    -DBUILD_EXAMPLES=OFF \
+                    -DBUILD_EXAMPLES=ON \
                     -DBUILD_TOOLS=OFF \
                     -DBUILD_PYTHON_BINDINGS=ON \
-                    -DBUILD_WEBTORRENT=ON
+                    -DBUILD_WEBTORRENT=ON \
+                    -DWEBSOCKETPP_ROOT=$GITHUB_WORKSPACE/websocketpp-install
                   ninja
 
             # ───── Build Python wheel ───────────────────────────────────────────────────
