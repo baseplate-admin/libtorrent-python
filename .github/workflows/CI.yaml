@@ -1,0 +1,73 @@
+name: Build libtorrent with Python bindings and WebTorrent support
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+
+            - name: Install system dependencies
+              run: |
+                  sudo apt update
+                  sudo apt install -y \
+                    build-essential \
+                    cmake \
+                    git \
+                    python3 \
+                    python3-dev \
+                    python3-setuptools \
+                    python3-pip \
+                    libboost-all-dev \
+                    libboost-python-dev \
+                    libssl-dev \
+                    libtool \
+                    pkg-config
+
+            - name: Install WebSocket++
+              run: |
+                  git clone https://github.com/zaphoyd/websocketpp.git
+                  cd websocketpp
+                  mkdir build && cd build
+                  cmake ..
+                  sudo make install
+
+            - name: Clone libtorrent
+              run: |
+                  git clone --recurse-submodules https://github.com/arvidn/libtorrent.git
+                  cd libtorrent
+                  git checkout RC_2_0  # Optional: select a stable version
+
+            - name: Build libtorrent core library
+              run: |
+                  cd libtorrent
+                  mkdir build && cd build
+                  cmake .. \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -DBUILD_TESTING=OFF \
+                    -DBUILD_EXAMPLES=OFF \
+                    -DBUILD_TOOLS=OFF \
+                    -DBoost_USE_STATIC_LIBS=OFF \
+                    -DBUILD_PYTHON_BINDINGS=ON \
+                    -DBUILD_WEBTORRENT=ON
+                  cmake --build . --parallel
+
+            - name: Build Python bindings
+              run: |
+                  cd libtorrent/bindings/python
+                  python3 -m pip install wheel setuptools
+                  python3 setup.py bdist_wheel
+
+            - name: Upload Python wheel as artifact
+              uses: actions/upload-artifact@v3
+              with:
+                  name: libtorrent-wheel
+                  path: libtorrent/bindings/python/dist/*.whl
