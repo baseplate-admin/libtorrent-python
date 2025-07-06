@@ -66,7 +66,9 @@ jobs:
               run: |
                   git clone https://github.com/openssl/openssl.git
                   cd openssl
-                  git checkout openssl-3.1.4
+
+                  # Use newer OpenSSL version for better Windows support
+                  git checkout openssl-3.2.2
                   mkdir -p $GITHUB_WORKSPACE/ssl
 
                   case $RUNNER_OS in
@@ -76,6 +78,11 @@ jobs:
                       make install
                       ;;
                     Windows)
+                      # Install required Perl modules on Windows
+                      curl -L https://cpanmin.us | perl - App::cpanminus
+                      cpanm Locale::Maketext::Simple
+                      
+                      # Build OpenSSL
                       perl Configure VC-WIN64A --prefix=$GITHUB_WORKSPACE/ssl no-shared
                       nmake
                       nmake install
