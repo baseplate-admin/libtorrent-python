@@ -52,15 +52,14 @@ jobs:
                   cd libtorrent
                   sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev nasm
 
-            # Windows specific fixes start here
             - name: Install Windows build tools
               if: runner.os == 'Windows'
               shell: powershell
               run: |
                   # Install NASM
                   Invoke-WebRequest -Uri https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/win64/nasm-2.16.01-win64.zip -OutFile nasm.zip
-                  Expand-Archive -Path nasm.zip -DestinationPath nasm
-                  echo "C:\nasm" >> $env:GITHUB_PATH
+                  Expand-Archive -Path nasm.zip -DestinationPath C:\nasm
+                  echo "C:\nasm" | Out-File -FilePath $env:GITHUB_PATH -Append
 
                   # Install Visual Studio Build Tools
                   choco install visualstudio2022buildtools -y --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
@@ -76,6 +75,8 @@ jobs:
               run: |
                   git clone https://github.com/openssl/openssl.git --branch openssl-3.0.12 --depth 1
                   cd openssl
+                  set NASM_PATH=C:\nasm
+                  set PATH=%NASM_PATH%;%PATH%
                   perl Configure VC-WIN64A --prefix=%CD%\install no-shared
                   nmake
                   nmake install
@@ -107,6 +108,8 @@ jobs:
                   set OPENSSL_ROOT=%CD%\..\openssl\install
                   cd bindings\python
                   python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static runtime-link=static ssl=static -sOPENSSL_ROOT=%OPENSSL_ROOT%" install --user --prefix=
+
+                  
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
