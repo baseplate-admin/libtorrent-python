@@ -92,19 +92,19 @@ jobs:
                   set PATH=%BOOST_ROOT%;%PATH%
                   set OPENSSL_ROOT=%CD%\..\openssl\install
                   cd bindings\python
-                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static" install --user --prefix=
+                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static webtorrent=on" install --user --prefix=
 
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
                   cd libtorrent/bindings/python
-                  python3 setup.py build_ext --b2-args "deprecated-functions=off link=static"
+                  python3 setup.py build_ext --b2-args "deprecated-functions=off link=static webtorrent=on"
 
             - name: build/install (Linux)
               if: runner.os == 'Linux'
               run: |
                   cd libtorrent/bindings/python
-                  python3 setup.py build_ext --b2-args "link=static" install --user --prefix=
+                  python3 setup.py build_ext --b2-args "link=static webtorrent=on" install --user --prefix=
 
             - name: build/install (MacOS)
               if: runner.os == 'macOS'
