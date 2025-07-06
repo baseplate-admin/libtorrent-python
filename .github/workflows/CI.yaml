@@ -50,7 +50,35 @@ jobs:
               if: runner.os == 'Linux'
               run: |
                   cd libtorrent
-                  sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
+                  sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev nasm
+
+            # Windows specific fixes start here
+            - name: Install Windows build tools
+              if: runner.os == 'Windows'
+              shell: powershell
+              run: |
+                  # Install NASM
+                  Invoke-WebRequest -Uri https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/win64/nasm-2.16.01-win64.zip -OutFile nasm.zip
+                  Expand-Archive -Path nasm.zip -DestinationPath nasm
+                  echo "C:\nasm" >> $env:GITHUB_PATH
+
+                  # Install Visual Studio Build Tools
+                  choco install visualstudio2022buildtools -y --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+                  choco install visualstudio2022-workload-nativedesktop -y
+
+            - name: Setup MSVC environment
+              if: runner.os == 'Windows'
+              uses: ilammy/msvc-dev-cmd@v1
+
+            - name: Build OpenSSL (Windows)
+              if: runner.os == 'Windows'
+              shell: cmd
+              run: |
+                  git clone https://github.com/openssl/openssl.git --branch openssl-3.0.12 --depth 1
+                  cd openssl
+                  perl Configure VC-WIN64A --prefix=%CD%\install no-shared
+                  nmake
+                  nmake install
 
             - name: install boost (windows)
               if: runner.os == 'Windows'
@@ -67,15 +95,6 @@ jobs:
               run: |
                   cd libtorrent\boost
                   .\b2 headers
-            - name: Build OpenSSL (Windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  git clone https://github.com/openssl/openssl.git --branch openssl-3.0.12 --depth 1
-                  cd openssl
-                  perl Configure VC-WIN64A --prefix=%CD%\install no-shared
-                  nmake
-                  nmake install
 
             - name: build/install (windows)
               if: runner.os == 'Windows'
@@ -88,7 +107,7 @@ jobs:
                   set OPENSSL_ROOT=%CD%\..\openssl\install
                   cd bindings\python
                   python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static runtime-link=static ssl-link=static -sOPENSSL_ROOT=%OPENSSL_ROOT%" install --user --prefix=
-
+            # Windows fixes end here
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
