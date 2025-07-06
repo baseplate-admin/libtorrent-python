@@ -106,24 +106,23 @@ jobs:
                   set PATH=%BOOST_ROOT%;%PATH%
                   set OPENSSL_ROOT=%CD%\..\openssl\install
                   cd bindings\python
-                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static runtime-link=static ssl-link=static -sOPENSSL_ROOT=%OPENSSL_ROOT%" install --user --prefix=
-            # Windows fixes end here
+                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static runtime-link=static ssl=static -sOPENSSL_ROOT=%OPENSSL_ROOT%" install --user --prefix=
+
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
                   cd libtorrent/bindings/python
-                  python3 setup.py build_ext --b2-args "deprecated-functions=off link=static ssl-link=static"
+                  python3 setup.py build_ext --b2-args "deprecated-functions=off link=static ssl=static"
 
             - name: build/install (Linux)
               if: runner.os == 'Linux'
               run: |
                   cd libtorrent/bindings/python
-                  python3 setup.py build_ext --b2-args "link=static ssl-link=static" install --user --prefix=
-
+                  python3 setup.py build_ext --b2-args "link=static ssl=static" install --user --prefix=
             - name: build/install (MacOS)
               if: runner.os == 'macOS'
               run: |
                   cd libtorrent/bindings/python
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
                   export OPENSSL_ROOT=$(brew --prefix openssl@3)
-                  python3.13 setup.py build_ext --b2-args "link=static ssl-link=static -sOPENSSL_ROOT=$OPENSSL_ROOT" install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+                  python3.13 setup.py build_ext --b2-args "link=static ssl=static -sOPENSSL_ROOT=$OPENSSL_ROOT" install --install-lib $(brew --prefix)/lib/python3.13/site-packages
