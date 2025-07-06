@@ -107,7 +107,7 @@ jobs:
                   set PATH=%BOOST_ROOT%;%PATH%
                   set OPENSSL_ROOT=%CD%\..\openssl\install
                   cd bindings\python
-                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static runtime-link=static ssl=static -sOPENSSL_ROOT=%OPENSSL_ROOT%" install --user --prefix=
+                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static runtime-link=static -sOPENSSL_ROOT=%OPENSSL_ROOT%" install --user --prefix=
 
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
