@@ -1,4 +1,5 @@
-name: Build libtorrent with Python bindings and WebTorrent support
+# .github/workflows/build-libtorrent.yml
+name: Build libtorrent (WebTorrent + Python) on Windows/Linux/macOS
 
 on:
     push:
@@ -9,86 +10,100 @@ on:
 
 jobs:
     build:
-        name: Build on ${{ matrix.os }}
+        name: ${{ matrix.os }} build
         runs-on: ${{ matrix.os }}
 
         strategy:
             matrix:
-                os: [ubuntu-latest, windows-latest, macos-latest]
+                os: [ubuntu-latest, macos-latest, windows-latest]
 
         steps:
-            - name: Checkout repository
+            - name: Checkout repo
               uses: actions/checkout@v3
 
-            - name: Set up Python
+            - name: Setup Python 3.11
               uses: actions/setup-python@v5
               with:
                   python-version: '3.11'
 
-            - name: Install dependencies (Linux)
+            # ───── Dependencies ─────────────────────────────────────────────────────────
+            - name: Install deps on Linux
               if: runner.os == 'Linux'
               run: |
                   sudo apt update
                   sudo apt install -y \
-                    build-essential cmake git \
+                    build-essential cmake git ninja-build \
                     libboost-all-dev libboost-python-dev \
-                    libssl-dev libtool pkg-config \
-                    python3-dev python3-pip \
-                    python3-setuptools python3-wheel
-                  python3 -m pip install wheel setuptools
+                    libssl-dev python3-dev python3-pip
+                  python3 -m pip install --upgrade wheel setuptools
 
-            - name: Install dependencies (macOS)
+            - name: Add swap on Linux (4 GB)
+              if: runner.os == 'Linux'
+              run: |
+                  sudo fallocate -l 4G /swapfile
+                  sudo chmod 600 /swapfile
+                  sudo mkswap /swapfile
+                  sudo swapon /swapfile
+
+            - name: Install deps on macOS
               if: runner.os == 'macOS'
               run: |
-                  brew install boost openssl cmake git websocketpp python@3.11
-                  python3 -m pip install wheel setuptools
+                  brew update
+                  brew install boost openssl cmake git ninja python@3.11
+                  python3 -m pip install --upgrade wheel setuptools
 
-            - name: Install dependencies (Windows)
+            - name: Install deps on Windows
               if: runner.os == 'Windows'
+              shell: pwsh
               run: |
-                  choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-                  choco install boost-msvc-14.3 python --version=3.11.4 -y
-                  python -m pip install wheel setuptools
+                  choco install -y cmake --installargs '"ADD_CMAKE_TO_PATH=System"'
+                  choco install -y boost-msvc-14.3 python --version=3.11.4 ninja
+                  python -m pip install --upgrade wheel setuptools
 
-            - name: Install WebSocket++ (Linux/macOS only)
+            # ───── WebSocket++ ─────────────────────────────────────────────────────────
+            - name: Install WebSocket++ on Linux/macOS
               if: runner.os != 'Windows'
               run: |
                   git clone https://github.com/zaphoyd/websocketpp.git
                   cd websocketpp
                   mkdir build && cd build
-                  cmake ..
-                  sudo make install
+                  cmake -G Ninja ..
+                  ninja
+                  sudo ninja install
 
+            # ───── libtorrent Checkout ──────────────────────────────────────────────────
             - name: Clone libtorrent
               run: |
                   git clone --recurse-submodules https://github.com/arvidn/libtorrent.git
                   cd libtorrent
                   git checkout RC_2_0
 
-            - name: Build libtorrent
+            # ───── Build core with Ninja ────────────────────────────────────────────────
+            - name: Build libtorrent core
+              shell: bash
               run: |
                   cd libtorrent
                   mkdir build && cd build
-                  cmake .. `
-                    -DCMAKE_BUILD_TYPE=Release `
-                    -DBUILD_TESTING=OFF `
-                    -DBUILD_EXAMPLES=OFF `
-                    -DBUILD_TOOLS=OFF `
-                    -DBUILD_PYTHON_BINDINGS=ON `
+                  cmake -G Ninja .. \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -DBUILD_TESTING=OFF \
+                    -DBUILD_EXAMPLES=OFF \
+                    -DBUILD_TOOLS=OFF \
+                    -DBUILD_PYTHON_BINDINGS=ON \
                     -DBUILD_WEBTORRENT=ON
-                  cmake --build . --parallel
+                  ninja
 
-              shell: bash
-
+            # ───── Build Python wheel ───────────────────────────────────────────────────
             - name: Build Python bindings
+              shell: bash
               run: |
                   cd libtorrent/bindings/python
+                  python -m pip install --upgrade wheel setuptools
                   python setup.py bdist_wheel
 
-              shell: bash
-
-            - name: Upload Python wheel
+            # ───── Upload artifact ─────────────────────────────────────────────────────
+            - name: Upload wheel artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: libtorrent-wheel-${{ runner.os }}
+                  name: libtorrent-wheel-${{ matrix.os }}
                   path: libtorrent/bindings/python/dist/*.whl
