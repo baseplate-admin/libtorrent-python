@@ -56,14 +56,11 @@ jobs:
               if: runner.os == 'Windows'
               shell: powershell
               run: |
-                  # Install NASM
-                  Invoke-WebRequest -Uri https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/win64/nasm-2.16.01-win64.zip -OutFile nasm.zip
-                  Expand-Archive -Path nasm.zip -DestinationPath C:\nasm
-                  echo "C:\nasm" | Out-File -FilePath $env:GITHUB_PATH -Append
-
                   # Install Visual Studio Build Tools
                   choco install visualstudio2022buildtools -y --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
                   choco install visualstudio2022-workload-nativedesktop -y
+                  # Install NASM
+                  choco install nasm -y
 
             - name: Setup MSVC environment
               if: runner.os == 'Windows'
