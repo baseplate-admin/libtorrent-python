@@ -82,6 +82,14 @@ jobs:
                   cd libtorrent\boost
                   .\b2 headers
 
+            # FIX: Build Boost.Python library explicitly
+            - name: build boost-python (windows)
+              if: runner.os == 'Windows'
+              shell: cmd
+              run: |
+                  cd libtorrent\boost
+                  .\b2 --with-python variant=release link=static runtime-link=static address-model=64
+
             - name: build/install (windows)
               if: runner.os == 'Windows'
               shell: cmd
@@ -90,7 +98,8 @@ jobs:
                   set BOOST_ROOT=%CD%\boost
                   set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
                   set PATH=%BOOST_ROOT%;%PATH%
-                  set OPENSSL_ROOT=%CD%\..\openssl\install
+
+                  set OPENSSL_ROOT="C:\Program Files\OpenSSL"
                   cd bindings\python
                   python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static" install --user --prefix=
 
