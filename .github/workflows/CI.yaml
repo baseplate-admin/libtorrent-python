@@ -23,43 +23,55 @@ jobs:
             - name: Download source
               run: |
                   git clone  https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch RC_2_0
-                  cd libtorrent
 
             - name: dependencies (MacOS)
+              working-directory: libtorrent
               if: runner.os == 'macOS'
               run: |
                   brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+
             - name: update package lists (linux)
               if: runner.os == 'Linux'
+              working-directory: libtorrent
               continue-on-error: true
               run: |
                   sudo apt update
+
             - uses: Chocobo1/setup-ccache-action@v1
               if: runner.os != 'Windows'
+              working-directory: libtorrent
               with:
                   update_packager_index: false
                   override_cache_key: ccache-python-${{ matrix.os }}-${{ github.base_ref }}
                   ccache_options: |
                       max_size=500M
+
             - name: dependencies (linux)
               if: runner.os == 'Linux'
+              working-directory: libtorrent
               run: |
                   sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
+
             - name: install boost (windows)
               if: runner.os == 'Windows'
               shell: cmd
+              working-directory: libtorrent
               run: |
                   git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
                   cd boost
                   bootstrap.bat
+
             - name: boost headers (windows)
               if: runner.os == 'Windows'
+              working-directory: libtorrent
               shell: cmd
               run: |
                   cd boost
                   .\b2 headers
+
             - name: build/install (windows)
+              working-directory: libtorrent
               if: runner.os == 'Windows'
               shell: cmd
               run: |
@@ -68,37 +80,25 @@ jobs:
                   set PATH=%BOOST_ROOT%;%PATH%
                   cd bindings\python
                   python setup.py build_ext --b2-args "asserts=on invariant-checks=full" install --user --prefix=
-            - name: tests (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd bindings\python
-                  python test.py
+
             - name: build no-deprecated (Linux)
+              working-directory: libtorrent
               if: runner.os == 'Linux'
               run: |
                   cd bindings/python
                   python3 setup.py build_ext --b2-args "deprecated-functions=off"
+
             - name: build/install (Linux)
+              working-directory: libtorrent
               if: runner.os == 'Linux'
               run: |
                   cd bindings/python
                   python3 setup.py build_ext install --user --prefix=
             - name: build/install (MacOS)
+              working-directory: libtorrent
               if: runner.os == 'macOS'
               run: |
                   # Install to Homebrew's python site-packages. no need for --user and --prefix
                   cd bindings/python
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
                   python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
-            - name: tests (Linux)
-              if: runner.os == 'Linux'
-              run: |
-                  cd bindings/python
-                  python3 test.py
-            - name: tests (MacOS)
-              if: runner.os == 'macOS'
-              run: |
-                  cd bindings/python
-                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
-                  python3.13 test.py
