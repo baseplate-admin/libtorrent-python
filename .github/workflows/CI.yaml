@@ -59,24 +59,12 @@ jobs:
                   # Install Visual Studio Build Tools
                   choco install visualstudio2022buildtools -y --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
                   choco install visualstudio2022-workload-nativedesktop -y
-                  # Install NASM
-                  choco install nasm -y
+                  # Install OpenSSL
+                  choco install openssl
 
             - name: Setup MSVC environment
               if: runner.os == 'Windows'
               uses: ilammy/msvc-dev-cmd@v1
-
-            - name: Build OpenSSL (Windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  git clone https://github.com/openssl/openssl.git --branch openssl-3.0.12 --depth 1
-                  cd openssl
-                  set NASM_PATH=C:\nasm
-                  set PATH=%NASM_PATH%;%PATH%
-                  perl Configure VC-WIN64A --prefix=%CD%\install no-shared
-                  nmake
-                  nmake install
 
             - name: install boost (windows)
               if: runner.os == 'Windows'
