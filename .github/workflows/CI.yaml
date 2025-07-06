@@ -82,17 +82,20 @@ jobs:
                   cd libtorrent\boost
                   .\b2 headers
 
-            - name: build/install (windows)
+            - name: build/install (Windows)
               if: runner.os == 'Windows'
-              shell: cmd
+              shell: pwsh
               run: |
                   cd libtorrent
-                  set BOOST_ROOT=%CD%\boost
-                  set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
-                  set PATH=%BOOST_ROOT%;%PATH%
-                  set OPENSSL_ROOT=%CD%\..\openssl\install
-                  cd bindings\python
-                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static webtorrent=on" install --user --prefix=
+                  cmake -B build -S . `
+                    -DCMAKE_BUILD_TYPE=Release `
+                    -Dpython-bindings=ON `
+                    -Dwebtorrent=ON `
+                    -Dbuild_tools=OFF `
+                    -Dbuild_tests=OFF
+                  cmake --build build --config Release
+                  cd bindings/python
+                  python -m pip install .
 
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
@@ -103,12 +106,29 @@ jobs:
             - name: build/install (Linux)
               if: runner.os == 'Linux'
               run: |
-                  cd libtorrent/bindings/python
-                  python3 setup.py build_ext --b2-args "link=static webtorrent=on" install --user --prefix=
+                  cd libtorrent
+                  cmake -B build -S . \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -Dpython-bindings=ON \
+                    -Dwebtorrent=ON \
+                    -Dbuild_tools=OFF \
+                    -Dbuild_tests=OFF
+                  cmake --build build --config Release
+                  cd bindings/python
+                  python3 -m pip install .
 
             - name: build/install (MacOS)
               if: runner.os == 'macOS'
               run: |
-                  cd libtorrent/bindings/python
+                  cd libtorrent
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
-                  python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+                  cmake -B build -S . \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -Dpython-bindings=ON \
+                    -Dwebtorrent=ON \
+                    -Dbuild_tools=OFF \
+                    -Dbuild_tests=OFF \
+                    -DOPENSSL_ROOT_DIR=$(brew --prefix openssl)
+                  cmake --build build --config Release
+                  cd bindings/python
+                  python3.13 -m pip install .
