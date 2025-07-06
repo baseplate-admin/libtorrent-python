@@ -118,10 +118,24 @@ jobs:
                   cd libtorrent/bindings/python
                   python3 setup.py build_ext --b2-args "link=static" install --user --prefix=
 
-            - name: build/install (MacOS)
+            - name: build/install (macOS)
               if: runner.os == 'macOS'
               run: |
                   cd libtorrent/bindings/python
-                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+                  export PYTHON_VERSION=3.13
+                  export PYTHON_BIN=$(brew --prefix python@3.13)/bin/python3.13
+                  export PYTHON_INCLUDE=$(brew --prefix python@3.13)/Frameworks/Python.framework/Versions/${PYTHON_VERSION}/include/python${PYTHON_VERSION}
                   export OPENSSL_ROOT=$(brew --prefix openssl@3)
-                  python3.13 setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static runtime-link=static -sOPENSSL_ROOT=$OPENSSL_ROOT" install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+                  export BOOST_ROOT=$(brew --prefix boost)
+                  export SITE_PACKAGES=$(brew --prefix)/lib/python${PYTHON_VERSION}/site-packages
+
+                  cat > project-config.jam <<EOF
+                  using python : ${PYTHON_VERSION} : ${PYTHON_BIN} : ${PYTHON_INCLUDE} ;
+                  EOF
+
+                  ${PYTHON_BIN} setup.py build_ext --b2-args \
+                    "asserts=on invariant-checks=full libtorrent-link=static boost-link=static link=static runtime-link=static \
+                    -sOPENSSL_ROOT=${OPENSSL_ROOT} -sBOOST_ROOT=${BOOST_ROOT} \
+                    cxxstd=14 toolset=darwin deprecated-functions=on crypto=openssl variant=release address-model=64 architecture=arm \
+                    python=${PYTHON_VERSION} libtorrent-python=on" \
+                    install --install-lib=${SITE_PACKAGES}
