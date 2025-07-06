@@ -127,4 +127,4 @@ jobs:
                   cd libtorrent/bindings/python
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
                   export OPENSSL_ROOT=$(brew --prefix openssl@3)
-                  python3.13 setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static runtime-link=static ssl=static -sOPENSSL_ROOT=$OPENSSL_ROOT" install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+                  python3.13 setup.py build_ext --b2-args "asserts=on invariant-checks=full link=static runtime-link=static -sOPENSSL_ROOT=$OPENSSL_ROOT" install --install-lib $(brew --prefix)/lib/python3.13/site-packages
