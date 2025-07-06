@@ -1,71 +1,104 @@
-name: Libtorrent Build Matrix
+name: Python bindings
 
 on:
     push:
-        branches: [main]
     pull_request:
-        branches: [main]
-    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.ref }}-${{ github.workflow }}-${{ github.event_name }}
+    cancel-in-progress: true
+
+env:
+    HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
+    HOMEBREW_NO_AUTO_UPDATE: 1
 
 jobs:
-    build:
-        name: Build - ${{ matrix.config }}
-        runs-on: ubuntu-22.04
-        continue-on-error: true
+    test:
+        name: build
+        runs-on: ${{ matrix.os }}
+
         strategy:
             matrix:
-                config:
-                    - 'asio-debugging=on picker-debugging=on'
-                    - 'extensions=off logging=off streaming=off super-seeding=off share-mode=off predictive-pieces=off dht=off alert-msg=off encryption=off mutable-torrents=off deprecated-functions=off'
-                    - 'crypto=gcrypt'
-                    - 'mmap-disk-io=off'
-            fail-fast: false
+                os: [ubuntu-24.04, macos-latest, windows-latest]
 
         steps:
-            - name: Checkout repository
-              run: git clone https://github.com/arvidn/libtorrent.git --depth 1 --branch RC_2_0
+            - name: Download source
+              run: git clone  https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch RC_2_0
 
-            - name: Update package lists
-              run: sudo apt update
+            - name: dependencies (MacOS)
+              if: runner.os == 'macOS'
+              run: |
+                  brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
+                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+            - name: update package lists (linux)
+              if: runner.os == 'Linux'
               continue-on-error: true
-
-            - name: Setup ccache
-              uses: Chocobo1/setup-ccache-action@v1
+              run: |
+                  sudo apt update
+            - uses: Chocobo1/setup-ccache-action@v1
+              if: runner.os != 'Windows'
               with:
                   update_packager_index: false
-                  override_cache_key: ccache-linux-build-${{ github.base_ref }}-${{ matrix.config }}
+                  override_cache_key: ccache-python-${{ matrix.os }}-${{ github.base_ref }}
                   ccache_options: |
-                      max_size=5G
-
-            - name: Install dependencies
+                      max_size=500M
+            - name: dependencies (linux)
+              if: runner.os == 'Linux'
               run: |
-                  sudo apt install -y \
-                    libboost-python-dev \
-                    libboost-tools-dev \
-                    libboost-dev \
-                    libboost-system-dev \
-                    python3
-                  echo "using gcc ;" >> ~/user-config.jam
-
-            - name: Install gcrypt (if needed)
-              if: contains(matrix.config, 'crypto=gcrypt')
-              run: sudo apt install -y libgcrypt20-dev
-
-            - name: Build library
-              run: b2 ${{ matrix.config }} cxxstd=14,17,20 warnings-as-errors=on
-
-            - name: Build examples
+                  sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
+            - name: install boost (windows)
+              if: runner.os == 'Windows'
+              shell: cmd
               run: |
-                  cd examples
-                  b2 ${{ matrix.config }} cxxstd=14,17,20 warnings-as-errors=on
-
-            - name: Build tools
+                  git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
+                  cd boost
+                  bootstrap.bat
+            - name: boost headers (windows)
+              if: runner.os == 'Windows'
+              shell: cmd
               run: |
-                  cd tools
-                  b2 ${{ matrix.config }} cxxstd=14,17,20 warnings-as-errors=on
-
-            - name: Build Python bindings
+                  cd boost
+                  .\b2 headers
+            - name: build/install (windows)
+              if: runner.os == 'Windows'
+              shell: cmd
+              run: |
+                  set BOOST_ROOT=%CD%\boost
+                  set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
+                  set PATH=%BOOST_ROOT%;%PATH%
+                  cd bindings\python
+                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full" install --user --prefix=
+            - name: tests (windows)
+              if: runner.os == 'Windows'
+              shell: cmd
+              run: |
+                  cd bindings\python
+                  python test.py
+            - name: build no-deprecated (Linux)
+              if: runner.os == 'Linux'
               run: |
                   cd bindings/python
-                  echo "using python ;" >> ~/user-config.jam
-                  BOOST_ROOT="" b2 ${{ matrix.config }} cxxstd=14,17,20 warnings-as-errors=on
+                  python3 setup.py build_ext --b2-args "deprecated-functions=off"
+            - name: build/install (Linux)
+              if: runner.os == 'Linux'
+              run: |
+                  cd bindings/python
+                  python3 setup.py build_ext install --user --prefix=
+            - name: build/install (MacOS)
+              if: runner.os == 'macOS'
+              run: |
+                  # Install to Homebrew's python site-packages. no need for --user and --prefix
+                  cd bindings/python
+                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+                  python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+            - name: tests (Linux)
+              if: runner.os == 'Linux'
+              run: |
+                  cd bindings/python
+                  python3 test.py
+            - name: tests (MacOS)
+              if: runner.os == 'macOS'
+              run: |
+                  cd bindings/python
+                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+                  python3.13 test.py
