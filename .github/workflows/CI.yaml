@@ -14,9 +14,13 @@ jobs:
       OPENSSL_VERSION: 1.1.1w
 
     steps:
-      - name: Download source
-        run: |
-              git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          repository: arvidn/libtorrent
+          submodules: recursive
+          ref: master
+          path: libtorrent
 
       - name: Install dependencies
         run: |
@@ -26,9 +30,9 @@ jobs:
       - name: Download and extract prebuilt OpenSSL
         shell: cmd
         run: |
-          curl -L -o openssl.zip https://github.com/indygreg/openssl-windows-builds/releases/download/2023-11-22/openssl-1.1.1w-windows-x86_64.zip
-          7z x openssl.zip -oC:\OpenSSL
-          ren "C:\OpenSSL\openssl-1.1.1w-windows-x86_64" OpenSSL
+          curl -L -o openssl.zip https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe
+          mkdir C:\OpenSSL
+          Start-Process -Wait -FilePath openssl.zip -ArgumentList "/silent /verysilent /sp- /suppressmsgboxes /DIR=C:\OpenSSL"
 
       - name: Install prebuilt Boost
         shell: cmd
@@ -41,7 +45,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cd libtorrent  # Enter the libtorrent directory
+          cd libtorrent
           mkdir build
           cd build
           cmake -G "Ninja" ^
@@ -68,18 +72,18 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cd libtorrent\build  # Build inside the libtorrent directory
+          cd libtorrent\build
           cmake --build . --config Release --parallel %NUMBER_OF_PROCESSORS%
 
       - name: Build Python wheel
         shell: cmd
         run: |
           set LT_CMAKE_BUILD=%cd%\libtorrent\build
-          cd libtorrent\bindings\python  # Enter the bindings directory
+          cd libtorrent\bindings\python
           python setup.py bdist_wheel
 
       - name: Upload Python wheel
         uses: actions/upload-artifact@v4
         with:
           name: libtorrent-python-wheel
-          path: libtorrent\bindings\python\dist\*.whl  # Correct path to wheels
+          path: libtorrent\bindings\python\dist\*.whl
