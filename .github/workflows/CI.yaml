@@ -44,7 +44,7 @@ jobs:
           git clone --depth=1 --recurse-submodules -b boost-1.84.0 https://github.com/boostorg/boost.git boost
           cd boost
           bootstrap.bat
-          b2 cxxstd=23 release link=shared address-model=64 --with-python --with-system --prefix=stage install
+          b2 cxxstd=23 release link=shared address-model=64 --with-python --with-system --prefix=%BOOST_ROOT% install
 
       - name: Configure with CMake (C++23)
         shell: cmd
@@ -57,11 +57,14 @@ jobs:
             -DCMAKE_CXX_STANDARD=23 ^
             -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
             -DCMAKE_CXX_EXTENSIONS=OFF ^
-            -DBOOST_INCLUDEDIR=%BOOST_ROOT%\stage\include ^
-            -DBOOST_LIBRARYDIR=%BOOST_ROOT%\stage\lib ^
+            -DBOOST_ROOT=%BOOST_ROOT% ^
+            -DBoost_USE_STATIC_LIBS=OFF ^
+            -DBoost_USE_MULTITHREADED=ON ^
+            -DBoost_USE_STATIC_RUNTIME=OFF ^
+            -DBoost_NO_BOOST_CMAKE=ON ^
             -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT% ^
             -Dpython-bindings=ON ^
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.10 ^
+            -DCMAKE_POLICY_DEFAULT_CMP0167=NEW ^
             -Dwebtorrent=ON ^
             ..
 
