@@ -14,13 +14,9 @@ jobs:
       OPENSSL_VERSION: 1.1.1w
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-        with:
-          repository: arvidn/libtorrent
-          submodules: recursive
-          ref: master
-          path: libtorrent  # Add this to create the repo in a 'libtorrent' directory
+      - name: Download source
+        run: |
+              git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch RC_2_0
 
       - name: Install dependencies
         run: |
