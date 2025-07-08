@@ -12,7 +12,8 @@ jobs:
     env:
       OPENSSL_ROOT: C:\OpenSSL
       OPENSSL_VERSION: OpenSSL_1_1_1w
-      PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
+      PYTHON_VERSION: 3.13
+      PYTHON_DIR: C:\hostedtoolcache\windows\Python\${{ env.PYTHON_VERSION }}.5\x64
       BOOST_ROOT: ${{ github.workspace }}\boost
 
     steps:
@@ -27,6 +28,7 @@ jobs:
         run: |
           choco install strawberryperl ninja nasm cmake -y
           python -m pip install --upgrade pip setuptools wheel
+
       - name: Build OpenSSL from source
         shell: cmd
         run: |
@@ -37,14 +39,16 @@ jobs:
           perl Configure VC-WIN64A no-shared no-tests --prefix=%OPENSSL_ROOT% && ^
           nmake && ^
           nmake install_sw
-      - name: Build Boost (stage for CMake)
+
+      - name: Build Boost with correct Python binding
         shell: cmd
         run: |
           git clone --depth=1 --recurse-submodules -b boost-1.78.0 https://github.com/boostorg/boost.git boost
           cd boost
           bootstrap.bat
-          b2 cxxstd=14 release link=shared address-model=64 --with-python --with-system --prefix=stage install
-
+          echo using python : $env:PYTHON_VERSION : "$env:PYTHON_DIR\python.exe" : "$env:PYTHON_DIR\include" : "$env:PYTHON_DIR\libs" ; > user-config.jam
+          b2 cxxstd=14 release link=shared address-model=64 --with-python ^
+             --with-system --user-config=user-config.jam --prefix=stage install
 
       - name: Configure with CMake
         shell: cmd
@@ -61,12 +65,11 @@ jobs:
             -Dpython-bindings=ON ^
             -DCMAKE_POLICY_VERSION_MINIMUM=3.10 ^
             -Dwebtorrent=ON ^
-            -Dboost-python-module-name=python ^
+            -Dboost-python-module-name=python${{ env.PYTHON_VERSION | replace('.', '') }} ^
             -DPython_EXECUTABLE=%PYTHON_DIR%\python.exe ^
             -DPython_INCLUDE_DIR=%PYTHON_DIR%\include ^
-            -DPython_LIBRARY=%PYTHON_DIR%\libs\python313.lib ^
+            -DPython_LIBRARY=%PYTHON_DIR%\libs\python${{ env.PYTHON_VERSION | replace('.', '') }}.lib ^
             ..
-
 
       - name: Build with CMake
         shell: cmd
@@ -78,6 +81,7 @@ jobs:
       - name: Build Python wheel
         shell: cmd
         run: |
+          set LT_CMAKE_BUILD=%cd%\build
           cd bindings\python
           python setup.py bdist_wheel
 
