@@ -16,9 +16,8 @@ jobs:
       BOOST_ROOT: ${{ github.workspace }}/libtorrent/boost
 
     steps:
-      - name: Download source
-        run: |
-          git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+      - name: Checkout source
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -39,8 +38,9 @@ jobs:
       - name: Install Boost (windows)
         shell: cmd
         run: |
+          mkdir libtorrent
           cd libtorrent
-          git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
+          git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git boost
           cd boost
           bootstrap.bat
 
@@ -51,17 +51,45 @@ jobs:
           .\b2 headers
           echo B2_PATH=%cd%>> %GITHUB_ENV%
 
-      - name: Set up Boost Python config
+      - name: Build libjuice (dependency of libdatachannel)
+        shell: cmd
+        run: |
+          cd libtorrent\deps\libdatachannel\deps\libjuice
+          mkdir build
+          cd build
+          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+          nmake
+
+      - name: Set up Boost Python config & libjuice env
+        shell: pwsh
         run: |
           $py = "$env:PYTHON_DIR\python.exe"
           $version = & $py -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
           $include = "$env:PYTHON_DIR\include"
           $libs = "$env:PYTHON_DIR\libs"
-          "using msvc ;`nusing python : $version : $py : $include : $libs ;" | Set-Content "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
+          "using msvc ;`nusing python : $version : $py : $include : $libs ;" |
+            Set-Content "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
           # Add Python to system PATH
           $pythonPath = "$env:PYTHON_DIR;$env:PYTHON_DIR\Scripts;"
-          echo "PATH=$pythonPath$env:PATH" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        shell: pwsh
+          echo "PATH=$pythonPath$env:PATH" |
+            Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          # Expose libjuice include & lib dirs
+          echo "INCLUDE=%INCLUDE%;$env:GITHUB_WORKSPACE\libtorrent\deps\libdatachannel\deps\libjuice\include" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "LIB=%LIB%;$env:GITHUB_WORKSPACE\libtorrent\deps\libdatachannel\deps\libjuice\build" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Download libtorrent source
+        run: |
+          git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+
+      - name: Build Boost Python config & env (cmd)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          rem ensure updated INCLUDE and LIB variables are in effect
+          echo INCLUDE=%INCLUDE%
+          echo LIB=%LIB%
 
       - name: Build libtorrent (b2)
         shell: cmd
@@ -83,11 +111,9 @@ jobs:
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           cd libtorrent\bindings\python
-          # Set critical environment variables
           set INCLUDE=%INCLUDE%;%PYTHON_DIR%\include
           set LIB=%LIB%;%PYTHON_DIR%\libs
           set PATH=%PATH%;%PYTHON_DIR%;%PYTHON_DIR%\Scripts
-          # Build with verbose logging
           "%B2_PATH%\b2.exe" -d+2 -j2 --hash ^
             openssl-lib=%OPENSSL_ROOT%\lib ^
             openssl-include=%OPENSSL_ROOT%\include ^
@@ -99,13 +125,13 @@ jobs:
             libtorrent-link=static stage_module stage_dependencies
 
       - name: Build Python wheel
+        shell: cmd
         run: |
           cd libtorrent\bindings\python
           python setup.py bdist_wheel
-        shell: cmd
 
       - name: Upload Python wheel
         uses: actions/upload-artifact@v4
         with:
           name: libtorrent-python-wheel
-          path: libtorrent/bindings/python/dist/*.whl
+          path: libtorrent\bindings\python\dist\*.whl
