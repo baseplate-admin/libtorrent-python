@@ -4,6 +4,7 @@ on:
     push:
     pull_request:
 
+
 env:
     HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
     HOMEBREW_NO_AUTO_UPDATE: 1
@@ -19,23 +20,23 @@ jobs:
                 os: [ubuntu-24.04, macos-latest, windows-latest]
 
         steps:
-            - name: Download source
-              run: |
-                  git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  submodules: true
+                  fetch-depth: 1
+                  filter: tree:0
 
             - name: dependencies (MacOS)
               if: runner.os == 'macOS'
               run: |
-                  cd libtorrent
                   brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
 
             - name: update package lists (linux)
               if: runner.os == 'Linux'
               continue-on-error: true
-              run: |
-                  cd libtorrent
-                  sudo apt update
+              run: sudo apt update
 
             - name: Setup ccache
               if: runner.os != 'Windows'
@@ -49,14 +50,12 @@ jobs:
             - name: dependencies (linux)
               if: runner.os == 'Linux'
               run: |
-                  cd libtorrent
                   sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
 
             - name: install boost (windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
-                  cd libtorrent
                   git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
                   cd boost
                   bootstrap.bat
@@ -65,35 +64,34 @@ jobs:
               if: runner.os == 'Windows'
               shell: cmd
               run: |
-                  cd libtorrent\boost
+                  cd boost
                   .\b2 headers
 
             - name: build/install (windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
-                  cd libtorrent
                   set BOOST_ROOT=%CD%\boost
                   set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
                   set PATH=%BOOST_ROOT%;%PATH%
-                  cd bindings\python
-                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
+                  cd bindings/python
+                  python setup.py build_ext --b2-args "msvc-version-macro=on address-model=64 asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
 
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
-                  cd libtorrent/bindings/python
+                  cd bindings/python
                   python3 setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
 
             - name: build/install (Linux)
               if: runner.os == 'Linux'
               run: |
-                  cd libtorrent/bindings/python
+                  cd bindings/python
                   python3 setup.py build_ext install --user --prefix=
 
             - name: build/install (MacOS)
               if: runner.os == 'macOS'
               run: |
-                  cd libtorrent/bindings/python
+                  cd bindings/python
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
                   python3.13 setup.py build_ext --b2-args "webtorrent=on" install --install-lib $(brew --prefix)/lib/python3.13/site-packages
