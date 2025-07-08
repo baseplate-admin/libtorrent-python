@@ -43,7 +43,8 @@ jobs:
           git clone --depth=1 --recurse-submodules -b boost-1.78.0 https://github.com/boostorg/boost.git boost
           cd boost
           bootstrap.bat
-          b2 cxxstd=14 release --with-python --with-system --layout=system address-model=64 link=shared stage
+          b2 cxxstd=14 release link=shared address-model=64 --with-python --with-system --prefix=stage install
+
 
       - name: Configure with CMake
         shell: cmd
@@ -54,10 +55,9 @@ jobs:
           cmake -G "Ninja" ^
             -DCMAKE_BUILD_TYPE=Release ^
             -DCMAKE_CXX_STANDARD=14 ^
-            -DBOOST_ROOT=%BOOST_ROOT% ^
-            -DBOOST_LIBRARYDIR=%BOOST_ROOT%/stage/lib ^
+            -DBOOST_INCLUDEDIR=%BOOST_ROOT%\stage\include ^
+            -DBOOST_LIBRARYDIR=%BOOST_ROOT%\stage\lib ^
             -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT% ^
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
             -Dpython-bindings=ON ^
             -Dwebtorrent=ON ^
             -Dboost-python-module-name=python ^
@@ -65,6 +65,7 @@ jobs:
             -DPython_INCLUDE_DIR=%PYTHON_DIR%\include ^
             -DPython_LIBRARY=%PYTHON_DIR%\libs\python313.lib ^
             ..
+
 
       - name: Build with CMake
         shell: cmd
