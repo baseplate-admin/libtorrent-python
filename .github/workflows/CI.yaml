@@ -1,99 +1,89 @@
-name: Python bindings
+name: Windows Libtorrent Build
 
 on:
-    push:
-    pull_request:
-
-env:
-    HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
-    HOMEBREW_NO_AUTO_UPDATE: 1
+  push:
+  pull_request:
 
 jobs:
-    test:
-        name: build
-        runs-on: ${{ matrix.os }}
+  windows-build:
+    runs-on: windows-latest
+    name: Build Libtorrent Python (Windows)
 
-        strategy:
-            fail-fast: false
-            matrix:
-                os: [ubuntu-24.04, macos-latest, windows-latest]
+    env:
+      BOOST_VERSION: 1.84.0
+      OPENSSL_VERSION: 1.1.1w
 
-        steps:
-            - name: Download source
-              run: |
-                  git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch RC_2_0
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          repository: arvidn/libtorrent
+          submodules: recursive
+          ref: master
+          path: libtorrent  # Add this to create the repo in a 'libtorrent' directory
 
-            - name: dependencies (MacOS)
-              if: runner.os == 'macOS'
-              run: |
-                  cd libtorrent
-                  brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
-                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+      - name: Install dependencies
+        run: |
+          choco install ninja cmake -y
+          python -m pip install --upgrade pip setuptools wheel
 
-            - name: update package lists (linux)
-              if: runner.os == 'Linux'
-              continue-on-error: true
-              run: |
-                  cd libtorrent
-                  sudo apt update
+      - name: Download and extract prebuilt OpenSSL
+        shell: cmd
+        run: |
+          curl -L -o openssl.zip https://github.com/indygreg/openssl-windows-builds/releases/download/2023-11-22/openssl-1.1.1w-windows-x86_64.zip
+          7z x openssl.zip -oC:\OpenSSL
+          ren "C:\OpenSSL\openssl-1.1.1w-windows-x86_64" OpenSSL
 
-            - name: Setup ccache
-              if: runner.os != 'Windows'
-              uses: Chocobo1/setup-ccache-action@v1
-              with:
-                  update_packager_index: false
-                  override_cache_key: ccache-python-${{ matrix.os }}-${{ github.base_ref }}
-                  ccache_options: |
-                      max_size=500M
+      - name: Install prebuilt Boost
+        shell: cmd
+        run: |
+          curl -L -o boost.zip https://sourceforge.net/projects/boost/files/boost-binaries/%BOOST_VERSION%/boost_1_84_0-msvc-14.3-64.exe/download
+          7z x boost.zip -oC:\Boost
+          ren "C:\Boost\boost_1_84_0" Boost
 
-            - name: dependencies (linux)
-              if: runner.os == 'Linux'
-              run: |
-                  cd libtorrent
-                  sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
+      - name: Configure with CMake (C++23)
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd libtorrent  # Enter the libtorrent directory
+          mkdir build
+          cd build
+          cmake -G "Ninja" ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_CXX_STANDARD=23 ^
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
+            -DCMAKE_CXX_EXTENSIONS=OFF ^
+            -DBOOST_ROOT="C:\Boost" ^
+            -DBoost_INCLUDE_DIR="C:\Boost\include\boost-1_84" ^
+            -DBoost_LIBRARY_DIR="C:\Boost\lib64-msvc-14.3" ^
+            -DOPENSSL_ROOT_DIR="C:\OpenSSL" ^
+            -DOPENSSL_INCLUDE_DIR="C:\OpenSSL\include" ^
+            -DOPENSSL_CRYPTO_LIBRARY="C:\OpenSSL\lib\libcrypto.lib" ^
+            -DOPENSSL_SSL_LIBRARY="C:\OpenSSL\lib\libssl.lib" ^
+            -Dpython-bindings=ON ^
+            -DCMAKE_POLICY_DEFAULT_CMP0074=NEW ^
+            -DCMAKE_POLICY_DEFAULT_CMP0144=NEW ^
+            -DCMAKE_POLICY_DEFAULT_CMP0167=NEW ^
+            -DCMAKE_POLICY_DEFAULT_CMP0183=NEW ^
+            -Dwebtorrent=ON ^
+            ..
 
-            - name: install boost (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd libtorrent
-                  git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
-                  cd boost
-                  bootstrap.bat
+      - name: Build with CMake
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd libtorrent\build  # Build inside the libtorrent directory
+          cmake --build . --config Release --parallel %NUMBER_OF_PROCESSORS%
 
-            - name: boost headers (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd libtorrent\boost
-                  .\b2 headers
+      - name: Build Python wheel
+        shell: cmd
+        run: |
+          set LT_CMAKE_BUILD=%cd%\libtorrent\build
+          cd libtorrent\bindings\python  # Enter the bindings directory
+          python setup.py bdist_wheel
 
-            - name: build/install (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd libtorrent
-                  set BOOST_ROOT=%CD%\boost
-                  set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
-                  set PATH=%BOOST_ROOT%;%PATH%
-                  cd bindings\python
-                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full" install --user --prefix=
-
-            - name: build no-deprecated (Linux)
-              if: runner.os == 'Linux'
-              run: |
-                  cd libtorrent/bindings/python
-                  python3 setup.py build_ext --b2-args "deprecated-functions=off"
-
-            - name: build/install (Linux)
-              if: runner.os == 'Linux'
-              run: |
-                  cd libtorrent/bindings/python
-                  python3 setup.py build_ext install --user --prefix=
-
-            - name: build/install (MacOS)
-              if: runner.os == 'macOS'
-              run: |
-                  cd libtorrent/bindings/python
-                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
-                  python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+      - name: Upload Python wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: libtorrent-python-wheel
+          path: libtorrent\bindings\python\dist\*.whl  # Correct path to wheels
