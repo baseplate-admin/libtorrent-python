@@ -49,7 +49,6 @@ jobs:
         run: |
           cd libtorrent/boost
           .\b2 headers
-          # Store absolute path to b2.exe for later steps
           echo "B2_PATH=$env:GITHUB_WORKSPACE\libtorrent\boost" >> $env:GITHUB_ENV
 
       - name: Set up Boost Python config
