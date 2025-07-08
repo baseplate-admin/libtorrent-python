@@ -10,8 +10,6 @@ jobs:
     name: Build Libtorrent Python (Windows)
 
     env:
-      BOOST_VERSION: 1_83_0
-      BOOST_DIR: C:\Libraries\boost_1_83_0
       OPENSSL_ROOT: C:\OpenSSL
       OPENSSL_VERSION: OpenSSL_1_1_1w
       PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
@@ -42,7 +40,7 @@ jobs:
         shell: cmd
         run: |
           cd libtorrent
-          git clone --depth=1 --recurse-submodules -j10 --branch=boost-%BOOST_VERSION% https://github.com/boostorg/boost.git
+          git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
           cd boost
           bootstrap.bat
 
