@@ -17,10 +17,10 @@ jobs:
       PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
 
     steps:
-      - name: Checkout libtorrent
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Download source
+        run: |
+          git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+
 
       - name: Install dependencies
         run: |
