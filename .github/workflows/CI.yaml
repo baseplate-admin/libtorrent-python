@@ -1,127 +1,121 @@
 name: Windows Libtorrent Build
 
 on:
-    push:
-    pull_request:
+  push:
+  pull_request:
 
 jobs:
-    windows-build:
-        runs-on: windows-latest
-        name: Build Libtorrent Python (Windows)
+  windows-build:
+    runs-on: windows-latest
+    name: Build Libtorrent Python (Windows)
 
-        env:
-            OPENSSL_ROOT: C:\OpenSSL
-            OPENSSL_VERSION: OpenSSL_1_1_1w
-            PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
-            BOOST_ROOT: ${{ github.workspace }}/libtorrent/boost
+    env:
+      OPENSSL_ROOT: C:\OpenSSL
+      OPENSSL_VERSION: OpenSSL_1_1_1w
+      PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
 
-        steps:
-            - name: Download source
-              run: |
-                  git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+    steps:
+      - name: Install dependencies
+        run: |
+          choco install strawberryperl ninja nasm -y
+          python -m pip install --upgrade pip setuptools wheel
 
-            - name: Install dependencies
-              run: |
-                  choco install strawberryperl ninja nasm cmake -y
-                  python -m pip install --upgrade pip setuptools wheel
+      - name: Build OpenSSL from source
+        shell: cmd
+        run: |
+          set PATH=%PATH%;"C:\Program Files\NASM"
+          git clone --branch %OPENSSL_VERSION% https://github.com/openssl/openssl.git
+          cd openssl
+          "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && ^
+          perl Configure VC-WIN64A no-shared no-tests --prefix=%OPENSSL_ROOT% && ^
+          nmake && ^
+          nmake install_sw
 
-            - name: Build OpenSSL from source
-              shell: cmd
-              run: |
-                  set PATH=%PATH%;"C:\Program Files\NASM"
-                  git clone --branch %OPENSSL_VERSION% https://github.com/openssl/openssl.git
-                  cd openssl
-                  "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && ^
-                  perl Configure VC-WIN64A no-shared no-tests --prefix=%OPENSSL_ROOT% && ^
-                  nmake && ^
-                  nmake install_sw
+      - name: Install Boost (windows)
+        shell: cmd
+        run: |
+          mkdir libtorrent
+          cd libtorrent
+          git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git boost
+          cd boost
+          bootstrap.bat
 
-            - name: Install Boost (windows)
-              shell: cmd
-              run: |
-                  cd libtorrent
-                  git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
-                  cd boost
-                  bootstrap.bat
+      - name: Build Boost headers
+        shell: cmd
+        run: |
+          cd libtorrent\boost
+          .\b2 headers
+          echo B2_PATH=%cd%>> %GITHUB_ENV%
 
-            - name: Build Boost headers
-              shell: cmd
-              run: |
-                  cd libtorrent\boost
-                  .\b2 headers
-                  echo B2_PATH=%cd%>> %GITHUB_ENV%
 
-            # Add step to build libjuice
-            - name: Build libjuice
-              shell: cmd
-              run: |
-                  cd libtorrent\deps\libdatachannel\deps\juice
-                  mkdir build
-                  cd build
-                  call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-                  cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DNO_WEBSOCKET=ON ..
-                  nmake
+      - name: Build libjuice (dependency of libdatachannel)
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd libtorrent\deps\libdatachannel\deps\libjuice
+          mkdir build
+          cd build
+          cmake .. -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+          nmake
 
-            - name: Set up Boost Python config
-              run: |
-                  $py = "$env:PYTHON_DIR\python.exe"
-                  $version = & $py -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-                  $include = "$env:PYTHON_DIR\include"
-                  $libs = "$env:PYTHON_DIR\libs"
-                  "using msvc ;`nusing python : $version : $py : $include : $libs ;" | Set-Content "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
-                  $pythonPath = "$env:PYTHON_DIR;$env:PYTHON_DIR\Scripts;"
-                  echo "PATH=$pythonPath$env:PATH" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-              shell: pwsh
+      - name: Set up Boost Python config & libjuice env
+        shell: pwsh
+        run: |
+          $py = "$env:PYTHON_DIR\python.exe"
+          $version = & $py -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+          $include = "$env:PYTHON_DIR\include"
+          $libs = "$env:PYTHON_DIR\libs"
+          "using msvc ;`nusing python : $version : $py : $include : $libs ;" |
+            Set-Content "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
+          $pythonPath = "$env:PYTHON_DIR;$env:PYTHON_DIR\Scripts;"
+          echo "PATH=$pythonPath$env:PATH" |
+            Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "INCLUDE=%INCLUDE%;$env:GITHUB_WORKSPACE\libtorrent\deps\libdatachannel\deps\libjuice\include" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "LIB=%LIB%;$env:GITHUB_WORKSPACE\libtorrent\deps\libdatachannel\deps\libjuice\build" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-            - name: Build libtorrent (b2)
-              shell: cmd
-              run: |
-                  call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-                  cd libtorrent
-                  # Add juice library path
-                  set JUICE_PATH=%cd%\deps\libdatachannel\deps\juice\build
-                  "%B2_PATH%\b2.exe" -j2 --hash ^
-                    openssl-lib=%OPENSSL_ROOT%\lib ^
-                    openssl-include=%OPENSSL_ROOT%\include ^
-                    warnings=all ^
-                    msvc address-model=64 ^
-                    picker-debugging=on invariant-checks=full ^
-                    variant=release link=static ^
-                    crypto=openssl webtorrent=on asserts=on export-extra=on ^
-                    windows-api=desktop windows-version=win10 cxxstd=17 ^
-                    -sJUICE_LIBRARY=%JUICE_PATH%\Release\juice-static.lib ^
-                    -sJUICE_INCLUDE=%JUICE_PATH%\..\include
+      - name: Build libtorrent (b2)
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd libtorrent
+          "%B2_PATH%\b2.exe" -j2 --hash ^
+            openssl-lib=%OPENSSL_ROOT%\lib ^
+            openssl-include=%OPENSSL_ROOT%\include ^
+            warnings=all ^
+            msvc address-model=64 ^
+            picker-debugging=on invariant-checks=full ^
+            variant=release link=static ^
+            crypto=openssl webtorrent=on asserts=on export-extra=on ^
+            windows-api=desktop windows-version=win10 cxxstd=17
 
-            - name: Build Python bindings (stage)
-              shell: cmd
-              run: |
-                  call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-                  cd libtorrent\bindings\python
-                  set INCLUDE=%INCLUDE%;%PYTHON_DIR%\include
-                  set LIB=%LIB%;%PYTHON_DIR%\libs
-                  set PATH=%PATH%;%PYTHON_DIR%;%PYTHON_DIR%\Scripts
-                  # Add juice library path
-                  set JUICE_PATH=%cd%\..\..\deps\libdatachannel\deps\juice\build
-                  "%B2_PATH%\b2.exe" -d+2 -j2 --hash ^
-                    openssl-lib=%OPENSSL_ROOT%\lib ^
-                    openssl-include=%OPENSSL_ROOT%\include ^
-                    warnings=all ^
-                    msvc address-model=64 ^
-                    picker-debugging=on invariant-checks=full ^
-                    variant=release link=static ^
-                    crypto=openssl webtorrent=on asserts=on export-extra=on ^
-                    libtorrent-link=static stage_module stage_dependencies ^
-                    -sJUICE_LIBRARY=%JUICE_PATH%\Release\juice-static.lib ^
-                    -sJUICE_INCLUDE=%JUICE_PATH%\..\include
+      - name: Build Python bindings (stage)
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd libtorrent\bindings\python
+          set INCLUDE=%INCLUDE%;%PYTHON_DIR%\include
+          set LIB=%LIB%;%PYTHON_DIR%\libs
+          set PATH=%PATH%;%PYTHON_DIR%;%PYTHON_DIR%\Scripts
+          "%B2_PATH%\b2.exe" -d+2 -j2 --hash ^
+            openssl-lib=%OPENSSL_ROOT%\lib ^
+            openssl-include=%OPENSSL_ROOT%\include ^
+            warnings=all ^
+            msvc address-model=64 ^
+            picker-debugging=on invariant-checks=full ^
+            variant=release link=shared  ^
+            crypto=openssl webtorrent=on asserts=on export-extra=on windows-api=desktop windows-version=win10^
+            libtorrent-link=shared stage_module stage_dependencies
 
-            - name: Build Python wheel
-              run: |
-                  cd libtorrent\bindings\python
-                  python setup.py bdist_wheel
-              shell: cmd
+      - name: Build Python wheel
+        shell: cmd
+        run: |
+          cd libtorrent\bindings\python
+          python setup.py bdist_wheel
 
-            - name: Upload Python wheel
-              uses: actions/upload-artifact@v4
-              with:
-                  name: libtorrent-python-wheel
-                  path: libtorrent/bindings/python/dist/*.whl
+      - name: Upload Python wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: libtorrent-python-wheel
+          path: libtorrent\bindings\python\dist\*.whl
