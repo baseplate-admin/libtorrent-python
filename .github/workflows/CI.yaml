@@ -50,6 +50,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd libtorrent-python\
           mkdir build
           cd build
           cmake -G "Ninja" ^
@@ -79,6 +80,7 @@ jobs:
         shell: cmd
         run: |
           set LT_CMAKE_BUILD=%cd%\build
+          cd libtorrent-python\
           cd bindings\python
           python setup.py bdist_wheel
 
