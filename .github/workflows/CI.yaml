@@ -18,12 +18,11 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-latest, windows-latest]
 
-    steps:
-      - name: Checkout libtorrent
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 1
+
+      - name: Download source
+        run: |
+            git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch RC_2_0
+
 
       # === OS-specific dependencies ===
       - name: Install dependencies (Linux)
