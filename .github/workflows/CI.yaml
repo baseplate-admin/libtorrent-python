@@ -15,6 +15,7 @@ jobs:
       OPENSSL_ROOT: C:\OpenSSL
       OPENSSL_VERSION: OpenSSL_1_1_1w
       PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
+      B2_PATH: ${{ github.workspace }}/libtorrent/boost  # Store b2.exe path
 
     steps:
       - name: Download source
@@ -28,9 +29,6 @@ jobs:
 
       - name: Build OpenSSL from source
         shell: cmd
-        env:
-          OPENSSL_ROOT: C:\OpenSSL
-          OPENSSL_VERSION: OpenSSL_1_1_1w
         run: |
           set PATH=%PATH%;"C:\Program Files\NASM"
           git clone --branch %OPENSSL_VERSION% https://github.com/openssl/openssl.git
@@ -40,21 +38,21 @@ jobs:
           nmake && ^
           nmake install_sw
 
-
-      - name: install boost (windows)
+      - name: Install Boost (windows)
         shell: cmd
         run: |
-            cd libtorrent
-            git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
-            cd boost
-            bootstrap.bat
+          cd libtorrent
+          git clone --depth=1 --recurse-submodules -j10 --branch=boost-%BOOST_VERSION% https://github.com/boostorg/boost.git
+          cd boost
+          bootstrap.bat
 
-      - name: boost headers (windows)
+      - name: Build Boost headers
         shell: cmd
         run: |
-          cd libtorrent\boost
+          cd libtorrent/boost
           .\b2 headers
-          set PATH=%CD%;%PATH%
+          # Store absolute path to b2.exe for later steps
+          echo "B2_PATH=$env:GITHUB_WORKSPACE\libtorrent\boost" >> $env:GITHUB_ENV
 
       - name: Set up Boost Python config
         run: |
@@ -66,8 +64,10 @@ jobs:
         shell: pwsh
 
       - name: Build libtorrent (b2)
+        shell: cmd
         run: |
-          b2.exe -j2 --hash ^
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          "%B2_PATH%\b2.exe" -j2 --hash ^
             openssl-lib=$env:OPENSSL_ROOT\lib ^
             openssl-include=$env:OPENSSL_ROOT\include ^
             warnings=all ^
@@ -76,12 +76,13 @@ jobs:
             variant=release link=static ^
             crypto=openssl webtorrent=on asserts=on export-extra=on ^
             windows-api=desktop windows-version=win10 cxxstd=17
-        shell: cmd
 
       - name: Build Python bindings (stage)
+        shell: cmd
         run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           cd bindings\python
-          b2.exe -j2 --hash ^
+          "%B2_PATH%\b2.exe" -j2 --hash ^
             openssl-lib=$env:OPENSSL_ROOT\lib ^
             openssl-include=$env:OPENSSL_ROOT\include ^
             warnings=all ^
@@ -90,7 +91,6 @@ jobs:
             variant=release link=static ^
             crypto=openssl webtorrent=on asserts=on export-extra=on ^
             libtorrent-link=static stage_module stage_dependencies
-        shell: cmd
 
       - name: Build Python wheel
         run: |
