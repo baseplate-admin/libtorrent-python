@@ -38,15 +38,15 @@ jobs:
           nmake && ^
           nmake install_sw
 
-      - name: Build Boost
+      - name: Build Boost with C++23 support
         shell: cmd
         run: |
-          git clone --depth=1 --recurse-submodules -b boost-1.78.0 https://github.com/boostorg/boost.git boost
+          git clone --depth=1 --recurse-submodules -b boost-1.84.0 https://github.com/boostorg/boost.git boost
           cd boost
           bootstrap.bat
-          b2 cxxstd=14 release link=shared address-model=64 --with-python --with-system --prefix=stage install
+          b2 cxxstd=23 release link=shared address-model=64 --with-python --with-system --prefix=stage install
 
-      - name: Configure with CMake
+      - name: Configure with CMake (C++23)
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
@@ -54,7 +54,9 @@ jobs:
           cd build
           cmake -G "Ninja" ^
             -DCMAKE_BUILD_TYPE=Release ^
-            -DCMAKE_CXX_STANDARD=14 ^
+            -DCMAKE_CXX_STANDARD=23 ^
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
+            -DCMAKE_CXX_EXTENSIONS=OFF ^
             -DBOOST_INCLUDEDIR=%BOOST_ROOT%\stage\include ^
             -DBOOST_LIBRARYDIR=%BOOST_ROOT%\stage\lib ^
             -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT% ^
