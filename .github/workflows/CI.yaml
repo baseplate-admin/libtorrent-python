@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Download source
         run: |
-            git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch RC_2_0
+          git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
 
 
       # === OS-specific dependencies ===
