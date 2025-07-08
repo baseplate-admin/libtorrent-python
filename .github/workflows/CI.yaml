@@ -13,7 +13,7 @@ jobs:
       OPENSSL_ROOT: C:\OpenSSL
       OPENSSL_VERSION: OpenSSL_1_1_1w
       PYTHON_VERSION: 3.13
-      PYTHON_DIR: C:\hostedtoolcache\windows\Python\${{ env.PYTHON_VERSION }}.5\x64
+      PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
       BOOST_ROOT: ${{ github.workspace }}\boost
 
     steps:
