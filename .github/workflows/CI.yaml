@@ -13,7 +13,6 @@ jobs:
       OPENSSL_ROOT: C:\OpenSSL
       OPENSSL_VERSION: OpenSSL_1_1_1w
       PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
-      # Add BOOST_ROOT environment variable
       BOOST_ROOT: ${{ github.workspace }}/libtorrent/boost
 
     steps:
@@ -81,6 +80,8 @@ jobs:
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           cd libtorrent\bindings\python
+          # Add explicit include path for Python headers
+          set INCLUDE=%INCLUDE%;%PYTHON_DIR%\include
           "%B2_PATH%\b2.exe" -j2 --hash ^
             openssl-lib=%OPENSSL_ROOT%\lib ^
             openssl-include=%OPENSSL_ROOT%\include ^
