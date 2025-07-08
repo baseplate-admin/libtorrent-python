@@ -18,12 +18,10 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-latest, windows-latest]
 
-
     steps:
       - name: Download source
         run: |
-          git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
-
+          git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch RC_2_0
 
       # === OS-specific dependencies ===
       - name: Install dependencies (Linux)
@@ -42,27 +40,25 @@ jobs:
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: pwsh
         run: |
           git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
           cd boost
-          bootstrap.bat
-          .\b2 headers
+          ./bootstrap.bat
+          ./b2 headers
 
       # === Build libdatachannel ===
       - name: Build libdatachannel (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
           cd libtorrent/deps/libdatachannel
-          mkdir build
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
             -DNO_TESTS=ON -DNO_EXAMPLES=ON -DUSE_STATIC_LIB=ON `
             -DCMAKE_INSTALL_PREFIX=install
           cmake --build build --config Release --target INSTALL
 
-      # === Build Libtorrent Python Bindings ===
+      # === Build Python Bindings ===
 
       - name: Build Python bindings (Linux)
         if: runner.os == 'Linux'
@@ -80,19 +76,23 @@ jobs:
 
       - name: Build Python bindings (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: pwsh
         run: |
-          set BOOST_ROOT=%CD%\boost
-          set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
-          set PATH=%BOOST_ROOT%;%PATH%
+          $env:BOOST_ROOT = "$pwd\boost"
+          $env:BOOST_BUILD_PATH = "$env:BOOST_ROOT\tools\build"
+          $env:PATH = "$env:BOOST_ROOT;$env:PATH"
 
-          set LIBDATACHANNEL_DIR=%CD%\libtorrent\deps\libdatachannel\install
-          set LIB=%LIBDATACHANNEL_DIR%\lib;%LIB%
-          set INCLUDE=%LIBDATACHANNEL_DIR%\include;%INCLUDE%
+          $libdata = "$pwd\libtorrent\deps\libdatachannel\install"
+          $libPath = "$libdata\lib"
+          $includePath = "$libdata\include"
 
-          cd libtorrent\bindings\python
-          python setup.py build_ext --b2-args ^
-            "msvc-version-macro=on address-model=64 asserts=on invariant-checks=full webtorrent=on" ^
-            "library-path=%LIBDATACHANNEL_DIR%\lib" ^
-            "include=%LIBDATACHANNEL_DIR%\include" ^
+          cd libtorrent/bindings/python
+          python setup.py build_ext --b2-args `
+            "msvc-version-macro=on" `
+            "address-model=64" `
+            "asserts=on" `
+            "invariant-checks=full" `
+            "webtorrent=on" `
+            "library-path=\"$libPath\"" `
+            "include-path=\"$includePath\"" `
             install --user --prefix=
