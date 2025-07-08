@@ -13,7 +13,6 @@ jobs:
       OPENSSL_ROOT: C:\OpenSSL
       OPENSSL_VERSION: OpenSSL_1_1_1w
       PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
-      B2_PATH: ${{ github.workspace }}/libtorrent/boost  # Store b2.exe path
 
     steps:
       - name: Download source
@@ -47,9 +46,9 @@ jobs:
       - name: Build Boost headers
         shell: cmd
         run: |
-          cd libtorrent/boost
+          cd libtorrent\boost
           .\b2 headers
-          echo "B2_PATH=$env:GITHUB_WORKSPACE\libtorrent\boost" >> $env:GITHUB_ENV
+          echo B2_PATH=%cd%>> %GITHUB_ENV%
 
       - name: Set up Boost Python config
         run: |
@@ -64,9 +63,9 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          "%B2_PATH%\b2.exe" -j2 --hash ^
-            openssl-lib=$env:OPENSSL_ROOT\lib ^
-            openssl-include=$env:OPENSSL_ROOT\include ^
+          %B2_PATH%\b2.exe -j2 --hash ^
+            openssl-lib=%OPENSSL_ROOT%\lib ^
+            openssl-include=%OPENSSL_ROOT%\include ^
             warnings=all ^
             msvc address-model=64 ^
             picker-debugging=on invariant-checks=full ^
@@ -79,9 +78,9 @@ jobs:
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           cd bindings\python
-          "%B2_PATH%\b2.exe" -j2 --hash ^
-            openssl-lib=$env:OPENSSL_ROOT\lib ^
-            openssl-include=$env:OPENSSL_ROOT\include ^
+          %B2_PATH%\b2.exe -j2 --hash ^
+            openssl-lib=%OPENSSL_ROOT%\lib ^
+            openssl-include=%OPENSSL_ROOT%\include ^
             warnings=all ^
             msvc address-model=64 ^
             picker-debugging=on invariant-checks=full ^
