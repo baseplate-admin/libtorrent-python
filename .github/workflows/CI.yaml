@@ -15,9 +15,12 @@ jobs:
       BOOST_ROOT: ${{ github.workspace }}\boost
 
     steps:
-      - name: Download source
-        run: |
-            git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          repository: arvidn/libtorrent
+          submodules: recursive
+          ref: master
 
       - name: Install dependencies
         run: |
@@ -47,7 +50,6 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cd libtorrent\
           mkdir build
           cd build
           cmake -G "Ninja" ^
@@ -56,14 +58,17 @@ jobs:
             -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
             -DCMAKE_CXX_EXTENSIONS=OFF ^
             -DBOOST_ROOT=%BOOST_ROOT% ^
-            -DBoost_USE_STATIC_LIBS=OFF ^
-            -DBoost_USE_MULTITHREADED=ON ^
-            -DBoost_USE_STATIC_RUNTIME=OFF ^
+            -DBoost_NO_SYSTEM_PATHS=ON ^
             -DBoost_NO_BOOST_CMAKE=ON ^
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.10 ^
+            -DBoost_USE_STATIC_LIBS=OFF ^
+            -DBoost_DEBUG=ON ^
             -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT% ^
             -Dpython-bindings=ON ^
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.10 ^
+            -DCMAKE_POLICY_DEFAULT_CMP0074=NEW ^
+            -DCMAKE_POLICY_DEFAULT_CMP0144=NEW ^
             -DCMAKE_POLICY_DEFAULT_CMP0167=NEW ^
+            -DCMAKE_POLICY_DEFAULT_CMP0183=NEW ^
             -Dwebtorrent=ON ^
             ..
 
@@ -71,19 +76,18 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cd libtorrent\build
+          cd build
           cmake --build . --config Release --parallel %NUMBER_OF_PROCESSORS%
 
       - name: Build Python wheel
         shell: cmd
         run: |
           set LT_CMAKE_BUILD=%cd%\build
-          
-          cd libtorrent\bindings\python
+          cd bindings\python
           python setup.py bdist_wheel
 
       - name: Upload Python wheel
         uses: actions/upload-artifact@v4
         with:
           name: libtorrent-python-wheel
-          path: libtorrent\bindings\python\dist\*.whl
+          path: bindings\python\dist\*.whl
