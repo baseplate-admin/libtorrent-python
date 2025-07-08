@@ -24,10 +24,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          choco install nasm strawberryperl ninja -y
+          choco install strawberryperl ninja -y
           python -m pip install --upgrade pip setuptools wheel
 
-      - name: Download and build OpenSSL (static)
+      - name: Install NASM
+        run: choco install nasm -y
+        shell: cmd
+
+      - name: Build OpenSSL from source
         shell: pwsh
         env:
           OPENSSL_ROOT: C:\OpenSSL
@@ -35,8 +39,11 @@ jobs:
         run: |
           git clone --branch $env:OPENSSL_VERSION https://github.com/openssl/openssl.git
           cd openssl
-          # Load Visual Studio environment for 'nmake'
-          & "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+
+          # Run Visual Studio environment setup and build inside one script block
+          & 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat'
+
+          # Now perl and nmake are available, configure and build OpenSSL
           perl Configure VC-WIN64A no-shared no-tests --prefix=$env:OPENSSL_ROOT
           nmake
           nmake install_sw
