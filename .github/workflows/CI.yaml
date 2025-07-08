@@ -21,12 +21,10 @@ jobs:
                 os: [ubuntu-24.04, macos-latest, windows-latest]
 
         steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
-              with:
-                  submodules: true
-                  fetch-depth: 1
-                  filter: tree:0
+            - name: Download source
+              run: |
+                  git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch RC_2_0
+
 
             - name: dependencies (MacOS)
               if: runner.os == 'macOS'
