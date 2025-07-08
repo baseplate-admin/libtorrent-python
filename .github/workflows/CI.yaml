@@ -15,12 +15,9 @@ jobs:
       BOOST_ROOT: ${{ github.workspace }}\boost
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-        with:
-          repository: arvidn/libtorrent
-          submodules: recursive
-          ref: master
+      - name: Download source
+        run: |
+            git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
 
       - name: Install dependencies
         run: |
@@ -50,7 +47,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cd libtorrent-python\
+          cd libtorrent\
           mkdir build
           cd build
           cmake -G "Ninja" ^
@@ -73,19 +70,19 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cd build
+          cd libtorrent\build
           cmake --build . --config Release --parallel %NUMBER_OF_PROCESSORS%
 
       - name: Build Python wheel
         shell: cmd
         run: |
           set LT_CMAKE_BUILD=%cd%\build
-          cd libtorrent-python\
-          cd bindings\python
+          
+          cd libtorrent\bindings\python
           python setup.py bdist_wheel
 
       - name: Upload Python wheel
         uses: actions/upload-artifact@v4
         with:
           name: libtorrent-python-wheel
-          path: bindings\python\dist\*.whl
+          path: libtorrent\bindings\python\dist\*.whl
