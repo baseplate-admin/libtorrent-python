@@ -21,30 +21,27 @@ jobs:
         run: |
           git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
 
-
       - name: Install dependencies
         run: |
-          choco install strawberryperl ninja -y
+          choco install strawberryperl ninja nasm -y
           python -m pip install --upgrade pip setuptools wheel
 
-      - name: Install NASM
-        run: choco install nasm -y
-        shell: cmd
-
       - name: Build OpenSSL from source
-        shell: cmd
+        shell: pwsh
         env:
           OPENSSL_ROOT: C:\OpenSSL
           OPENSSL_VERSION: OpenSSL_1_1_1w
         run: |
-            set PATH=C:\ProgramData\chocolatey\bin;%PATH%
-            git clone --branch %OPENSSL_VERSION% https://github.com/openssl/openssl.git
-            cd openssl
-            call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-            perl Configure VC-WIN64A no-shared no-tests --prefix=%OPENSSL_ROOT%
-            nmake
-            nmake install_sw
+          # Explicitly add NASM to PATH
+          $env:Path += ";C:\Program Files\NASM"
+          
+          git clone --branch $env:OPENSSL_VERSION https://github.com/openssl/openssl.git
+          cd openssl
 
+          & 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat'
+          perl Configure VC-WIN64A no-shared no-tests --prefix=$env:OPENSSL_ROOT
+          nmake
+          nmake install_sw
 
       - name: Download and extract Boost
         run: |
@@ -64,7 +61,6 @@ jobs:
           $include = "$env:PYTHON_DIR\include"
           $libs = "$env:PYTHON_DIR\libs"
           "using msvc ;`nusing python : $version : $py : $include : $libs ;" | Set-Content "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
-          type "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
         shell: pwsh
 
       - name: Build libtorrent (b2)
