@@ -41,16 +41,20 @@ jobs:
           nmake install_sw
 
 
-      - name: Download and extract Boost
+      - name: install boost (windows)
+        shell: cmd
         run: |
-          Invoke-WebRequest -Uri "https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_${env:BOOST_VERSION}.zip" -OutFile boost.zip
-          Expand-Archive boost.zip -DestinationPath C:\Libraries
+            cd libtorrent
+            git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
+            cd boost
+            bootstrap.bat
 
-      - name: Bootstrap Boost Build
+      - name: boost headers (windows)
+        if: runner.os == 'Windows'
+        shell: cmd
         run: |
-          cd $env:BOOST_DIR\tools\build
-          .\bootstrap.bat
-        shell: pwsh
+            cd libtorrent\boost
+            .\b2 headers
 
       - name: Set up Boost Python config
         run: |
