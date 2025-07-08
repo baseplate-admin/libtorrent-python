@@ -47,12 +47,6 @@ jobs:
           .\b2 headers
           echo B2_PATH=%cd%>> %GITHUB_ENV%
 
-      - name: Clone libtorrent + libdatachannel + submodules
-        run: |
-          git clone --recurse-submodules --depth=1 --branch master https://github.com/arvidn/libtorrent.git
-          cd libtorrent
-          git submodule update --init --recursive deps/libdatachannel
-
       - name: Build libjuice (dependency of libdatachannel)
         shell: cmd
         run: |
