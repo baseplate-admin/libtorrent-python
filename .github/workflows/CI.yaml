@@ -27,21 +27,19 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
 
       - name: Build OpenSSL from source
-        shell: pwsh
+        shell: cmd
         env:
           OPENSSL_ROOT: C:\OpenSSL
           OPENSSL_VERSION: OpenSSL_1_1_1w
         run: |
-          # Explicitly add NASM to PATH
-          $env:Path += ";C:\Program Files\NASM"
-          
-          git clone --branch $env:OPENSSL_VERSION https://github.com/openssl/openssl.git
+          set PATH=%PATH%;"C:\Program Files\NASM"
+          git clone --branch %OPENSSL_VERSION% https://github.com/openssl/openssl.git
           cd openssl
-
-          & 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat'
-          perl Configure VC-WIN64A no-shared no-tests --prefix=$env:OPENSSL_ROOT
-          nmake
+          "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && ^
+          perl Configure VC-WIN64A no-shared no-tests --prefix=%OPENSSL_ROOT% && ^
+          nmake && ^
           nmake install_sw
+
 
       - name: Download and extract Boost
         run: |
