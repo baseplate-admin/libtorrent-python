@@ -52,8 +52,9 @@ jobs:
       - name: boost headers (windows)
         shell: cmd
         run: |
-            cd libtorrent\boost
-            .\b2 headers
+          cd libtorrent\boost
+          .\b2 headers
+          set PATH=%CD%;%PATH%
 
       - name: Set up Boost Python config
         run: |
