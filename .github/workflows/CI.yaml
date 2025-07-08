@@ -4,9 +4,7 @@ on:
     push:
     pull_request:
 
-concurrency:
-    group: ${{ github.ref }}-${{ github.workflow }}-${{ github.event_name }}
-    cancel-in-progress: true
+
 
 env:
     HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
