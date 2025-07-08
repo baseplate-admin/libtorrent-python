@@ -62,7 +62,7 @@ jobs:
           $version = & $py -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
           $include = "$env:PYTHON_DIR\include"
           $libs = "$env:PYTHON_DIR\libs"
-          "using msvc ;`using python : $version : $py : $include : $libs ;" | Set-Content "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
+          "using msvc ;`nusing python : $version : $py : $include : $libs ;" | Set-Content "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
         shell: pwsh
 
       - name: Build libtorrent (b2)
