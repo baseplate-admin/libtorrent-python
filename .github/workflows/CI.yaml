@@ -58,13 +58,13 @@ jobs:
               run: |
                   cd boost
                   .\b2 headers
-                  
+
               # New step to build libdatachannel
             - name: Build libdatachannel (Windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
-                  cd deps\libdatachannel
+                  cd libtorrent\deps\libdatachannel
                   cmake -B build -G "Visual Studio 17 2022" -A x64 -DNO_TESTS=ON -DNO_EXAMPLES=ON -DUSE_STATIC_LIB=ON
                   cmake --build build --config Release --target install
 
