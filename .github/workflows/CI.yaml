@@ -59,6 +59,7 @@ jobs:
             -DBOOST_LIBRARYDIR=%BOOST_ROOT%\stage\lib ^
             -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT% ^
             -Dpython-bindings=ON ^
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.10 ^
             -Dwebtorrent=ON ^
             -Dboost-python-module-name=python ^
             -DPython_EXECUTABLE=%PYTHON_DIR%\python.exe ^
