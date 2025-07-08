@@ -27,7 +27,16 @@ jobs:
         run: |
           choco install strawberryperl ninja nasm cmake -y
           python -m pip install --upgrade pip setuptools wheel
-
+      - name: Build OpenSSL from source
+        shell: cmd
+        run: |
+          set PATH=%PATH%;"C:\Program Files\NASM"
+          git clone --branch %OPENSSL_VERSION% https://github.com/openssl/openssl.git
+          cd openssl
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && ^
+          perl Configure VC-WIN64A no-shared no-tests --prefix=%OPENSSL_ROOT% && ^
+          nmake && ^
+          nmake install_sw
       - name: Build Boost (stage for CMake)
         shell: cmd
         run: |
@@ -48,6 +57,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=14 ^
             -DBOOST_ROOT=%BOOST_ROOT% ^
             -DBOOST_LIBRARYDIR=%BOOST_ROOT%/stage/lib ^
+            -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT% ^
             -Dpython-bindings=ON ^
             -Dwebtorrent=ON ^
             -Dboost-python-module-name=python ^
