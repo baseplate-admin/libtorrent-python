@@ -6,7 +6,7 @@ on:
 
 jobs:
   windows-build:
-    runs-on: windows-2022
+    runs-on: windows-latest
     name: Build Libtorrent Python (Windows)
 
     env:
