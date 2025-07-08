@@ -1,27 +1,20 @@
-name: Python bindings
+name: Windows Libtorrent Build
 
 on:
   push:
   pull_request:
 
-env:
-  BOOST_VERSION: 1_83_0
-  BOOST_ROOT: C:\Libraries\boost_1_83_0
-  BOOST_BUILD_PATH: C:\Libraries\boost_1_83_0\tools\build
-  OPENSSL_DIR: C:\OpenSSL-v111-Win64
-
 jobs:
   windows-build:
-    name: Windows ${{ matrix.variant }} ${{ matrix.model }}bit
     runs-on: windows-2022
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: [debug, release]
-        model: [64]
-        include:
-          - webtorrent: on
-          - crypto: openssl
+    name: Build Libtorrent Python (Windows)
+
+    env:
+      BOOST_VERSION: 1_83_0
+      BOOST_DIR: C:\Libraries\boost_1_83_0
+      OPENSSL_ROOT: C:\OpenSSL
+      OPENSSL_VERSION: OpenSSL_1_1_1w
+      PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.13.5\x64
 
     steps:
       - name: Checkout libtorrent
@@ -29,75 +22,76 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Latest Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'  # This picks the latest stable version
-
-      - name: Install Python deps
-        run: python -m pip install --upgrade pip setuptools wheel websockets
-
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Set environment variables
+      - name: Install dependencies
         run: |
-          echo "BOOST_ROOT=$env:BOOST_ROOT" >> $env:GITHUB_ENV
-          echo "BOOST_BUILD_PATH=$env:BOOST_BUILD_PATH" >> $env:GITHUB_ENV
-          echo "OPENSSL_INCLUDE_DIR=$env:OPENSSL_DIR\include" >> $env:GITHUB_ENV
-          echo "OPENSSL_LIB_DIR=$env:OPENSSL_DIR\lib" >> $env:GITHUB_ENV
-          echo "PATH=$env:BOOST_BUILD_PATH;$env:BOOST_ROOT;$env:OPENSSL_DIR\bin;$env:PATH" >> $env:GITHUB_ENV
+          choco install nasm strawberryperl ninja -y
+          python -m pip install --upgrade pip setuptools wheel
 
-      - name: Write user-config.jam
+      - name: Download and build OpenSSL (static)
         run: |
-          $pythonPath = (Get-Command python).Path
-          $pythonDir = Split-Path $pythonPath -Parent
-          $include = "$pythonDir\include"
-          $libs = "$pythonDir\libs"
-          $version = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-          "using msvc ;`nusing python : $version : $pythonPath : $include : $libs ;" | Out-File "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam" -Encoding ascii
-          type "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
+          git clone --branch $env:OPENSSL_VERSION https://github.com/openssl/openssl.git
+          cd openssl
+          perl Configure VC-WIN64A no-shared no-tests --prefix=$env:OPENSSL_ROOT
+          nmake
+          nmake install_sw
+        shell: cmd
 
-      - name: Bootstrap Boost
+      - name: Download and extract Boost
         run: |
-          cd $env:BOOST_BUILD_PATH
+          Invoke-WebRequest -Uri "https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_${env:BOOST_VERSION}.zip" -OutFile boost.zip
+          Expand-Archive boost.zip -DestinationPath C:\Libraries
+
+      - name: Bootstrap Boost Build
+        run: |
+          cd $env:BOOST_DIR\tools\build
           .\bootstrap.bat
+        shell: pwsh
 
-      - name: Build libtorrent
+      - name: Set up Boost Python config
         run: |
-          cd $env:GITHUB_WORKSPACE
-          b2.exe -j2 --hash \
-            openssl-lib=$env:OPENSSL_LIB_DIR \
-            openssl-include=$env:OPENSSL_INCLUDE_DIR \
-            warnings=all warnings-as-errors=on \
-            msvc address-model=${{ matrix.model }} \
-            picker-debugging=on invariant-checks=full \
-            variant=${{ matrix.variant }} link=shared \
-            crypto=${{ matrix.crypto }} webtorrent=${{ matrix.webtorrent }} \
-            asserts=on export-extra=on \
-            windows-api=desktop windows-version=win10 cxxstd=17
+          $py = "$env:PYTHON_DIR\python.exe"
+          $version = & $py -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+          $include = "$env:PYTHON_DIR\include"
+          $libs = "$env:PYTHON_DIR\libs"
+          "using msvc ;`nusing python : $version : $py : $include : $libs ;" | Set-Content "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
+          type "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
+        shell: pwsh
 
-      - name: Build Python bindings
+      - name: Build libtorrent (b2)
+        run: |
+          b2 -j2 --hash ^
+            openssl-lib=$env:OPENSSL_ROOT\lib ^
+            openssl-include=$env:OPENSSL_ROOT\include ^
+            warnings=all ^
+            msvc address-model=64 ^
+            picker-debugging=on invariant-checks=full ^
+            variant=release link=static ^
+            crypto=openssl webtorrent=on asserts=on export-extra=on ^
+            windows-api=desktop windows-version=win10 cxxstd=17
+        shell: cmd
+
+      - name: Build Python bindings (stage)
         run: |
           cd bindings\python
-          b2.exe -j2 --hash \
-            openssl-lib=$env:OPENSSL_LIB_DIR \
-            openssl-include=$env:OPENSSL_INCLUDE_DIR \
-            warnings=all \
-            msvc address-model=${{ matrix.model }} \
-            picker-debugging=on invariant-checks=full \
-            variant=${{ matrix.variant }} link=shared \
-            crypto=${{ matrix.crypto }} webtorrent=${{ matrix.webtorrent }} \
-            asserts=on export-extra=on \
-            windows-api=desktop windows-version=win10 libtorrent-link=shared stage_module stage_dependencies
+          b2 -j2 --hash ^
+            openssl-lib=$env:OPENSSL_ROOT\lib ^
+            openssl-include=$env:OPENSSL_ROOT\include ^
+            warnings=all ^
+            msvc address-model=64 ^
+            picker-debugging=on invariant-checks=full ^
+            variant=release link=static ^
+            crypto=openssl webtorrent=on asserts=on export-extra=on ^
+            libtorrent-link=static stage_module stage_dependencies
+        shell: cmd
 
-      - name: Build Python Wheel
+      - name: Build Python wheel
         run: |
           cd bindings\python
           python setup.py bdist_wheel
+        shell: cmd
 
-      - name: Upload artifact
+      - name: Upload Python wheel
         uses: actions/upload-artifact@v4
         with:
-          name: python-module-${{ matrix.variant }}-${{ matrix.model }}bit
+          name: libtorrent-python-wheel
           path: bindings/python/dist/*.whl
