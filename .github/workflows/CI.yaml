@@ -58,6 +58,9 @@ jobs:
           $include = "$env:PYTHON_DIR\include"
           $libs = "$env:PYTHON_DIR\libs"
           "using msvc ;`nusing python : $version : $py : $include : $libs ;" | Set-Content "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
+          # Add Python to system PATH
+          $pythonPath = "$env:PYTHON_DIR;$env:PYTHON_DIR\Scripts;"
+          echo "PATH=$pythonPath$env:PATH" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         shell: pwsh
 
       - name: Build libtorrent (b2)
@@ -80,9 +83,12 @@ jobs:
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           cd libtorrent\bindings\python
-          # Add explicit include path for Python headers
+          # Set critical environment variables
           set INCLUDE=%INCLUDE%;%PYTHON_DIR%\include
-          "%B2_PATH%\b2.exe" -j2 --hash ^
+          set LIB=%LIB%;%PYTHON_DIR%\libs
+          set PATH=%PATH%;%PYTHON_DIR%;%PYTHON_DIR%\Scripts
+          # Build with verbose logging
+          "%B2_PATH%\b2.exe" -d+2 -j2 --hash ^
             openssl-lib=%OPENSSL_ROOT%\lib ^
             openssl-include=%OPENSSL_ROOT%\include ^
             warnings=all ^
