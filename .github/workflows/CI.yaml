@@ -50,7 +50,6 @@ jobs:
             bootstrap.bat
 
       - name: boost headers (windows)
-        if: runner.os == 'Windows'
         shell: cmd
         run: |
             cd libtorrent\boost
