@@ -27,12 +27,21 @@ jobs:
           choco install ninja cmake -y
           python -m pip install --upgrade pip setuptools wheel
 
-      - name: Download and extract prebuilt OpenSSL
+      - name: Download and install OpenSSL
         shell: cmd
         run: |
-          curl -L -o openssl.zip https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe
+          curl -L -o openssl.exe https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe
           mkdir C:\OpenSSL
-          Start-Process -Wait -FilePath openssl.zip -ArgumentList "/silent /verysilent /sp- /suppressmsgboxes /DIR=C:\OpenSSL"
+          openssl.exe /SILENT /VERYSILENT /SP- /SUPPRESSMSGBOXES /DIR=C:\OpenSSL
+          REM Wait for installation to complete
+          timeout /t 30 /nobreak
+          REM Verify installation
+          if exist "C:\OpenSSL\lib\libcrypto.lib" (
+            echo OpenSSL installed successfully
+          ) else (
+            echo OpenSSL installation failed
+            exit 1
+          )
 
       - name: Install prebuilt Boost
         shell: cmd
