@@ -67,7 +67,7 @@ jobs:
 
       - name: Build libtorrent (b2)
         run: |
-          b2 -j2 --hash ^
+          b2.exe -j2 --hash ^
             openssl-lib=$env:OPENSSL_ROOT\lib ^
             openssl-include=$env:OPENSSL_ROOT\include ^
             warnings=all ^
@@ -81,7 +81,7 @@ jobs:
       - name: Build Python bindings (stage)
         run: |
           cd bindings\python
-          b2 -j2 --hash ^
+          b2.exe -j2 --hash ^
             openssl-lib=$env:OPENSSL_ROOT\lib ^
             openssl-include=$env:OPENSSL_ROOT\include ^
             warnings=all ^
