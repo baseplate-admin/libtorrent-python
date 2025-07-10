@@ -15,12 +15,9 @@ jobs:
       BOOST_ROOT: ${{ github.workspace }}\boost
 
     steps:
-      - name: Checkout libtorrent
-        uses: actions/checkout@v4
-        with:
-          repository: arvidn/libtorrent
-          ref: master
-          submodules: recursive
+      - name: Download libtorrent source
+        run: |
+          git clone --depth=1 --recurse-submodules --branch master https://github.com/arvidn/libtorrent.git
 
       - name: Install dependencies
         run: |
@@ -46,7 +43,7 @@ jobs:
           bootstrap.bat
           b2 cxxstd=23 release link=shared address-model=64 --with-python --with-system --prefix=%BOOST_ROOT% install
 
-      - name: Configure with CMake (C++23)
+      - name: Configure with CMake (C++23 + Policy)
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
