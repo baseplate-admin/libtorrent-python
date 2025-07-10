@@ -15,9 +15,9 @@ jobs:
       BOOST_ROOT: ${{ github.workspace }}\boost
 
     steps:
-      - name: Download libtorrent source
+      - name: Download source
         run: |
-          git clone --depth=1 --recurse-submodules --branch master https://github.com/arvidn/libtorrent.git
+          git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
 
       - name: Install dependencies
         run: |
@@ -41,9 +41,14 @@ jobs:
           git clone --depth=1 --recurse-submodules -b boost-1.84.0 https://github.com/boostorg/boost.git boost
           cd boost
           bootstrap.bat
-          b2 cxxstd=23 release link=shared address-model=64 --with-python --with-system --prefix=%BOOST_ROOT% install
+          b2 cxxstd=23 release link=shared address-model=64 ^
+             --with-python --with-system ^
+             --prefix=%BOOST_ROOT% ^
+             --includedir=%BOOST_ROOT%\include ^
+             --libdir=%BOOST_ROOT%\lib ^
+             install
 
-      - name: Configure with CMake (C++23 + Policy)
+      - name: Configure with CMake (C++23 + Policies)
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
@@ -54,8 +59,10 @@ jobs:
             -DCMAKE_CXX_STANDARD=23 ^
             -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
             -DCMAKE_CXX_EXTENSIONS=OFF ^
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.21 ^
+            -DCMAKE_POLICY_VERSION=3.21 ^
             -DBOOST_ROOT=%BOOST_ROOT% ^
+            -DBoost_INCLUDE_DIR=%BOOST_ROOT%\include ^
+            -DBoost_LIBRARY_DIR=%BOOST_ROOT%\lib ^
             -DCMAKE_PREFIX_PATH=%BOOST_ROOT% ^
             -DBoost_NO_SYSTEM_PATHS=ON ^
             -DBoost_NO_BOOST_CMAKE=ON ^
@@ -76,7 +83,6 @@ jobs:
       - name: Build Python wheel
         shell: cmd
         run: |
-          set LT_CMAKE_BUILD=%cd%\build
           cd libtorrent\bindings\python
           python setup.py bdist_wheel
 
