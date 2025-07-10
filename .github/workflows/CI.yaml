@@ -100,11 +100,12 @@ jobs:
         set BOOST_ROOT=%CD%\boost
         set PATH=%BOOST_ROOT%;%PATH%
         set PYTHON_INTERPRETER=python
+        cd libtorrent
         tox -e py
 
     - name: build no-deprecated (Linux)
       if: runner.os == 'Linux'
       run: |
-        cd bindings/python
+        cd libtorrent/bindings/python
         python3 -m pip install setuptools
-        python3 setup.py build_ext --b2-args "deprecated-functions=off"
+        python3 setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
