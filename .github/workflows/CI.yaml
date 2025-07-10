@@ -59,7 +59,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=23 ^
             -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
             -DCMAKE_CXX_EXTENSIONS=OFF ^
-            -DCMAKE_POLICY_VERSION=3.21 ^
+            -DCMAKE_POLICY_MINIMUM_VERSION=3.21 ^
             -DBOOST_ROOT=%BOOST_ROOT% ^
             -DBoost_INCLUDE_DIR=%BOOST_ROOT%\include ^
             -DBoost_LIBRARY_DIR=%BOOST_ROOT%\lib ^
