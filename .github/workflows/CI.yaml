@@ -15,9 +15,12 @@ jobs:
       BOOST_ROOT: ${{ github.workspace }}\boost
 
     steps:
-      - name: Download source
-        run: |
-            git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+      - name: Checkout libtorrent
+        uses: actions/checkout@v4
+        with:
+          repository: arvidn/libtorrent
+          ref: master
+          submodules: recursive
 
       - name: Install dependencies
         run: |
@@ -54,18 +57,15 @@ jobs:
             -DCMAKE_CXX_STANDARD=23 ^
             -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
             -DCMAKE_CXX_EXTENSIONS=OFF ^
+            -DCMAKE_POLICY_VERSION=3.21 ^
             -DBOOST_ROOT=%BOOST_ROOT% ^
+            -DCMAKE_PREFIX_PATH=%BOOST_ROOT% ^
             -DBoost_NO_SYSTEM_PATHS=ON ^
             -DBoost_NO_BOOST_CMAKE=ON ^
             -DBoost_USE_STATIC_LIBS=OFF ^
             -DBoost_DEBUG=ON ^
             -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT% ^
             -Dpython-bindings=ON ^
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.10 ^
-            -DCMAKE_POLICY_DEFAULT_CMP0074=NEW ^
-            -DCMAKE_POLICY_DEFAULT_CMP0144=NEW ^
-            -DCMAKE_POLICY_DEFAULT_CMP0167=NEW ^
-            -DCMAKE_POLICY_DEFAULT_CMP0183=NEW ^
             -Dwebtorrent=ON ^
             ..
 
