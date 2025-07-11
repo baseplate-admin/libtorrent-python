@@ -1,99 +1,85 @@
-name: Python bindings
+name: Build Python Bindings
 
 on:
-    push:
-    pull_request:
-
-env:
-    HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
-    HOMEBREW_NO_AUTO_UPDATE: 1
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
-    test:
-        name: build
-        runs-on: ${{ matrix.os }}
+  build-python-bindings:
+    runs-on: windows-latest
+    environment:
+      BOOST_ROOT: C:\\Libraries\\boost_1_83_0
+      BOOST_BUILD_PATH: ${{ env.BOOST_ROOT }}\\tools\\build
+      SSL_LIB: C:\\OpenSSL-v111-Win64\\lib
+      SSL_INCLUDE: C:\\OpenSSL-v111-Win64\\include
+      ROOT_DIRECTORY: ${{ github.workspace }}
 
-        strategy:
-            fail-fast: false
-            matrix:
-                os: [ubuntu-24.04, macos-latest, windows-latest]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
-        steps:
-            - name: Download source
-              run: |
-                  git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+    - name: Install Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+        architecture: 'x64'
 
-            - name: dependencies (MacOS)
-              if: runner.os == 'macOS'
-              run: |
-                  cd libtorrent
-                  brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
-                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+    - name: Install dependencies
+      run: |
+        python -m pip install websockets
 
-            - name: update package lists (linux)
-              if: runner.os == 'Linux'
-              continue-on-error: true
-              run: |
-                  cd libtorrent
-                  sudo apt update
+    - name: Install OpenSSL
+      run: |
+        $url = "https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe"
+        $output = "$env:RUNNER_TEMP\Win64OpenSSL.exe"
+        Invoke-WebRequest -Uri $url -OutFile $output
+        Start-Process $output -ArgumentList '/silent', '/verysilent', '/sp-', '/suppressmsgboxes', '/DIR=C:\OpenSSL-v111-Win64' -Wait
 
-            - name: Setup ccache
-              if: runner.os != 'Windows'
-              uses: Chocobo1/setup-ccache-action@v1
-              with:
-                  update_packager_index: false
-                  override_cache_key: ccache-python-${{ matrix.os }}-${{ github.base_ref }}
-                  ccache_options: |
-                      max_size=500M
+    - name: Download and extract Boost
+      run: |
+        $url = "https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_1_83_0.zip"
+        $output = "$env:RUNNER_TEMP\boost.zip"
+        New-Item -ItemType Directory -Path C:\Libraries -Force
+        Invoke-WebRequest -Uri $url -OutFile $output
+        Expand-Archive -Path $output -DestinationPath C:\Libraries
 
-            - name: dependencies (linux)
-              if: runner.os == 'Linux'
-              run: |
-                  cd libtorrent
-                  sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
+    - name: Configure Boost.Build
+      run: |
+        $pythonDir = "$(python -c 'import sys; print(sys.prefix)')"
+        $pythonVersion = "$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+        $configContent = "using msvc ;`nusing python : $pythonVersion : `"$pythonDir`" : `"$pythonDir\\include`" : `"$pythonDir\\libs`" ;"
+        $configContent | Out-File -FilePath "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam" -Encoding ascii
+        type "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
 
-            - name: install boost (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd libtorrent
-                  git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
-                  cd boost
-                  bootstrap.bat
+    - name: Build Boost.Python
+      run: |
+        cd $env:BOOST_BUILD_PATH
+        .\bootstrap.bat
+        cd $env:BOOST_ROOT
+        .\b2.exe --with-python cxxstd=17 address-model=64 link=shared stage
 
-            - name: boost headers (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd libtorrent\boost
-                  .\b2 headers
+    - name: Build libtorrent
+      run: |
+        cd $env:ROOT_DIRECTORY
+        $env:PATH += ";$env:BOOST_BUILD_PATH"
+        b2.exe openssl-lib=$env:SSL_LIB openssl-include=$env:SSL_INCLUDE variant=release compiler=msvc address-model=64 link=shared crypto=openssl webtorrent=on cxxstd=17
 
-            - name: build/install (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd libtorrent
-                  set BOOST_ROOT=%CD%\boost
-                  set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
-                  set PATH=%BOOST_ROOT%;%PATH%
-                  cd bindings\python
-                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
+    - name: Build Python bindings
+      run: |
+        cd $env:ROOT_DIRECTORY\bindings\python
+        b2.exe openssl-lib=$env:SSL_LIB openssl-include=$env:SSL_INCLUDE variant=release compiler=msvc address-model=64 link=shared crypto=openssl webtorrent=on libtorrent-link=shared stage_module
 
-            - name: build no-deprecated (Linux)
-              if: runner.os == 'Linux'
-              run: |
-                  cd libtorrent/bindings/python
-                  python3 setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
+    - name: Package Python bindings
+      run: |
+        cd $env:ROOT_DIRECTORY\bindings\python
+        python setup.py bdist --format=msi
 
-            - name: build/install (Linux)
-              if: runner.os == 'Linux'
-              run: |
-                  cd libtorrent/bindings/python
-                  python3 setup.py build_ext install --user --prefix=
-
-            - name: build/install (MacOS)
-              if: runner.os == 'macOS'
-              run: |
-                  cd libtorrent/bindings/python
-                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
-                  python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-module
+        path: bindings/python/dist/*.msi
