@@ -1,93 +1,83 @@
-name: Windows Libtorrent Build
+name: Build Python Bindings
 
 on:
   push:
+  
   pull_request:
 
 jobs:
-  windows-build:
+  build-python-bindings:
     runs-on: windows-latest
-    name: Build Libtorrent Python (Windows)
-
     env:
-      OPENSSL_ROOT: C:\OpenSSL
-      OPENSSL_VERSION: OpenSSL_1_1_1w
-      BOOST_ROOT: ${{ github.workspace }}\boost
+      BOOST_ROOT: C:\\Libraries\\boost_1_83_0
+      BOOST_BUILD_PATH: C:\\Libraries\\boost_1_83_0\\tools\\build
+      SSL_LIB: C:\\OpenSSL-v111-Win64\\lib
+      SSL_INCLUDE: C:\\OpenSSL-v111-Win64\\include
 
     steps:
-      - name: Download source
-        run: |
-          git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 1
 
-      - name: Install dependencies
-        run: |
-          choco install strawberryperl ninja nasm cmake -y
-          python -m pip install --upgrade pip setuptools wheel
+    - name: Install Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+        architecture: 'x64'
 
-      - name: Build OpenSSL from source
-        shell: cmd
-        run: |
-          set PATH=%PATH%;"C:\Program Files\NASM"
-          git clone --branch %OPENSSL_VERSION% https://github.com/openssl/openssl.git
-          cd openssl
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && ^
-          perl Configure VC-WIN64A no-shared no-tests --prefix=%OPENSSL_ROOT% && ^
-          nmake && ^
-          nmake install_sw
+    - name: Install dependencies
+      run: |
+        python -m pip install websockets
 
-      - name: Build Boost with C++23 support
-        shell: cmd
-        run: |
-          git clone --depth=1 --recurse-submodules -b boost-1.84.0 https://github.com/boostorg/boost.git boost
-          cd boost
-          bootstrap.bat
-          b2 cxxstd=23 release link=shared address-model=64 ^
-             --with-python --with-system ^
-             --prefix=%BOOST_ROOT% ^
-             --includedir=%BOOST_ROOT%\include ^
-             --libdir=%BOOST_ROOT%\lib ^
-             install
+    - name: Install OpenSSL
+      run: |
+        $url = "https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe"
+        $output = "$env:RUNNER_TEMP\Win64OpenSSL.exe"
+        Invoke-WebRequest -Uri $url -OutFile $output
+        Start-Process $output -ArgumentList '/silent', '/verysilent', '/sp-', '/suppressmsgboxes', '/DIR=C:\OpenSSL-v111-Win64' -Wait
 
-      - name: Configure with CMake (C++23 + Policies)
-        shell: cmd
-        run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          mkdir libtorrent\build
-          cd libtorrent\build
-          cmake -G "Ninja" ^
-            -DCMAKE_BUILD_TYPE=Release ^
-            -DCMAKE_CXX_STANDARD=23 ^
-            -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
-            -DCMAKE_CXX_EXTENSIONS=OFF ^
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.21 ^
-            -DBOOST_ROOT=%BOOST_ROOT% ^
-            -DBoost_INCLUDE_DIR=%BOOST_ROOT%\include ^
-            -DBoost_LIBRARY_DIR=%BOOST_ROOT%\lib ^
-            -DCMAKE_PREFIX_PATH=%BOOST_ROOT% ^
-            -DBoost_NO_SYSTEM_PATHS=ON ^
-            -DBoost_NO_BOOST_CMAKE=ON ^
-            -DBoost_USE_STATIC_LIBS=OFF ^
-            -DBoost_DEBUG=ON ^
-            -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT% ^
-            -Dpython-bindings=ON ^
-            -Dwebtorrent=ON ^
-            ..
+    - name: Download and extract Boost
+      run: |
+        $url = "https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_1_83_0.zip"
+        $output = "$env:RUNNER_TEMP\boost.zip"
+        New-Item -ItemType Directory -Path C:\Libraries -Force
+        Invoke-WebRequest -Uri $url -OutFile $output
+        Expand-Archive -Path $output -DestinationPath C:\Libraries
 
-      - name: Build with CMake
-        shell: cmd
-        run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cd libtorrent\build
-          cmake --build . --config Release --parallel %NUMBER_OF_PROCESSORS%
+    - name: Configure Boost.Build
+      run: |
+        $pythonDir = "$(python -c 'import sys; print(sys.prefix)')"
+        $pythonVersion = "$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+        $configContent = "using msvc ;`nusing python : $pythonVersion : `"$pythonDir`" : `"$pythonDir\\include`" : `"$pythonDir\\libs`" ;"
+        $configContent | Out-File -FilePath "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam" -Encoding ascii
+        type "$env:HOMEDRIVE$env:HOMEPATH\user-config.jam"
 
-      - name: Build Python wheel
-        shell: cmd
-        run: |
-          cd libtorrent\bindings\python
-          python setup.py bdist_wheel
+    - name: Build Boost.Python
+      run: |
+        cd $env:BOOST_BUILD_PATH
+        .\bootstrap.bat
+        cd $env:BOOST_ROOT
+        .\b2.exe --with-python cxxstd=17 address-model=64 link=shared stage
 
-      - name: Upload Python wheel
-        uses: actions/upload-artifact@v4
-        with:
-          name: libtorrent-python-wheel
-          path: libtorrent\bindings\python\dist\*.whl
+    - name: Build libtorrent
+      run: |
+        $env:PATH += ";$env:BOOST_BUILD_PATH"
+        b2.exe openssl-lib=$env:SSL_LIB openssl-include=$env:SSL_INCLUDE variant=release compiler=msvc address-model=64 link=shared crypto=openssl webtorrent=on cxxstd=17
+
+    - name: Build Python bindings
+      run: |
+        cd bindings/python
+        b2.exe openssl-lib=$env:SSL_LIB openssl-include=$env:SSL_INCLUDE variant=release compiler=msvc address-model=64 link=shared crypto=openssl webtorrent=on libtorrent-link=shared stage_module
+
+    - name: Package Python bindings
+      run: |
+        cd bindings/python
+        python setup.py bdist --format=msi
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-module
+        path: bindings/python/dist/*.msi
