@@ -2,24 +2,31 @@ name: Build Python Bindings
 
 on:
   push:
-  
   pull_request:
+    
 
 jobs:
   build-python-bindings:
     runs-on: windows-latest
     env:
-      BOOST_ROOT: C:\\Libraries\\boost_1_83_0
-      BOOST_BUILD_PATH: C:\\Libraries\\boost_1_83_0\\tools\\build
+      BOOST_VERSION: 1.83.0
+      BOOST_ROOT: C:\\Libraries\\boost
+      SSL_ROOT: C:\\OpenSSL-v111-Win64
       SSL_LIB: C:\\OpenSSL-v111-Win64\\lib
       SSL_INCLUDE: C:\\OpenSSL-v111-Win64\\include
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        fetch-depth: 1
+    - name: Clone libtorrent
+      run: |
+        git clone https://github.com/arvidn/libtorrent.git --branch master --recurse-submodules
+        cd libtorrent
+        git submodule update --init --recursive --depth 1
+
+    - name: Clone Boost
+      run: |
+        git clone https://github.com/boostorg/boost.git --branch boost-${{ env.BOOST_VERSION }} --recurse-submodules $env:BOOST_ROOT
+        cd $env:BOOST_ROOT
+        git submodule update --init --recursive --depth 1
 
     - name: Install Python 3.8
       uses: actions/setup-python@v5
@@ -36,15 +43,7 @@ jobs:
         $url = "https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe"
         $output = "$env:RUNNER_TEMP\Win64OpenSSL.exe"
         Invoke-WebRequest -Uri $url -OutFile $output
-        Start-Process $output -ArgumentList '/silent', '/verysilent', '/sp-', '/suppressmsgboxes', '/DIR=C:\OpenSSL-v111-Win64' -Wait
-
-    - name: Download and extract Boost
-      run: |
-        $url = "https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_1_83_0.zip"
-        $output = "$env:RUNNER_TEMP\boost.zip"
-        New-Item -ItemType Directory -Path C:\Libraries -Force
-        Invoke-WebRequest -Uri $url -OutFile $output
-        Expand-Archive -Path $output -DestinationPath C:\Libraries
+        Start-Process $output -ArgumentList '/silent', '/verysilent', '/sp-', '/suppressmsgboxes', "/DIR=$env:SSL_ROOT" -Wait
 
     - name: Configure Boost.Build
       run: |
@@ -56,28 +55,29 @@ jobs:
 
     - name: Build Boost.Python
       run: |
-        cd $env:BOOST_BUILD_PATH
-        .\bootstrap.bat
         cd $env:BOOST_ROOT
+        .\bootstrap.bat
         .\b2.exe --with-python cxxstd=17 address-model=64 link=shared stage
 
     - name: Build libtorrent
       run: |
+        cd libtorrent
+        $env:BOOST_BUILD_PATH = "$env:BOOST_ROOT\\tools\\build"
         $env:PATH += ";$env:BOOST_BUILD_PATH"
         b2.exe openssl-lib=$env:SSL_LIB openssl-include=$env:SSL_INCLUDE variant=release compiler=msvc address-model=64 link=shared crypto=openssl webtorrent=on cxxstd=17
 
     - name: Build Python bindings
       run: |
-        cd bindings/python
+        cd libtorrent/bindings/python
         b2.exe openssl-lib=$env:SSL_LIB openssl-include=$env:SSL_INCLUDE variant=release compiler=msvc address-model=64 link=shared crypto=openssl webtorrent=on libtorrent-link=shared stage_module
 
     - name: Package Python bindings
       run: |
-        cd bindings/python
+        cd libtorrent/bindings/python
         python setup.py bdist --format=msi
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: python-module
-        path: bindings/python/dist/*.msi
+        path: libtorrent/bindings/python/dist/*.msi
