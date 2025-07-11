@@ -57,7 +57,7 @@ jobs:
       run: |
         cd $env:BOOST_ROOT
         .\bootstrap.bat
-        .\b2.exe --with-python cxxstd=17 address-model=64 link=shared stage
+        .\b2.exe --with-python variant=release address-model=64 link=shared runtime-link=shared define=MS_WIN64 stage toolset=msvc
 
     - name: Build libtorrent
       run: |
