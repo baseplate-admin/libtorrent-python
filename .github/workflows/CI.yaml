@@ -9,7 +9,7 @@ on:
 jobs:
   build-python-bindings:
     runs-on: windows-latest
-    environment:
+    env:
       BOOST_ROOT: C:\\Libraries\\boost_1_83_0
       BOOST_BUILD_PATH: ${{ env.BOOST_ROOT }}\\tools\\build
       SSL_LIB: C:\\OpenSSL-v111-Win64\\lib
