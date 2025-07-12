@@ -18,15 +18,15 @@ jobs:
     steps:
     - name: Clone libtorrent
       run: |
-        git clone https://github.com/arvidn/libtorrent.git --branch master --recurse-submodules
-        cd libtorrent
-        git submodule update --init --recursive --depth 1
+        git clone https://github.com/arvidn/libtorrent.git --branch master --recurse-submodules --depth 1
 
+
+        
     - name: Clone Boost
       run: |
-        git clone https://github.com/boostorg/boost.git --branch boost-${{ env.BOOST_VERSION }} --recurse-submodules $env:BOOST_ROOT
+        git clone https://github.com/boostorg/boost.git --branch boost-${{ env.BOOST_VERSION }} --recurse-submodules $env:BOOST_ROOT --depth 1
         cd $env:BOOST_ROOT
-        git submodule update --init --recursive --depth 1
+      
 
     - name: Install Python 3.8
       uses: actions/setup-python@v5
