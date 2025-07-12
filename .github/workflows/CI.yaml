@@ -69,7 +69,7 @@ jobs:
     - name: Build Python bindings
       run: |
         cd libtorrent/bindings/python
-        b2.exe openssl-lib=$env:SSL_LIB openssl-include=$env:SSL_INCLUDE variant=release compiler=msvc address-model=64 link=shared crypto=openssl webtorrent=on libtorrent-link=shared stage_module
+        b2.exe -d+2 openssl-lib=$env:SSL_LIB openssl-include=$env:SSL_INCLUDE variant=release compiler=msvc address-model=64 link=shared crypto=openssl webtorrent=on libtorrent-link=shared stage_module
 
     - name: Package Python bindings
       run: |
