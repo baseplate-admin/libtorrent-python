@@ -21,7 +21,7 @@ jobs:
         steps:
             - name: Download source
               run: |
-                  git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch RC_2_0
+                  git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
 
             - name: dependencies (MacOS)
               if: runner.os == 'macOS'
@@ -77,13 +77,13 @@ jobs:
                   set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
                   set PATH=%BOOST_ROOT%;%PATH%
                   cd bindings\python
-                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full" install --user --prefix=
+                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
 
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
                   cd libtorrent/bindings/python
-                  python3 setup.py build_ext --b2-args "deprecated-functions=off"
+                  python3 setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
 
             - name: build/install (Linux)
               if: runner.os == 'Linux'
