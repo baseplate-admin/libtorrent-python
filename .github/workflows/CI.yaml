@@ -93,7 +93,6 @@ jobs:
                   cd $HOME
                   git clone --depth=1  --recurse-submodules --branch=boost-1.78.0 https://github.com/boostorg/boost.git boost_1_78_0
                   cd boost_1_78_0
-
                   ./bootstrap.sh --with-libraries=python
                   ./b2 install --prefix=$HOME/boost_1_78_0 --with-python -j$(nproc)
 
@@ -152,20 +151,22 @@ jobs:
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
+                  export PATH=$HOME/boost_1_78_0/bin:$PATH
                   cd libtorrent/bindings/python
                   python${{ matrix.python-version }} setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
 
             - name: build/install (Linux)
               if: runner.os == 'Linux'
               run: |
+                  export PATH=$HOME/boost_1_78_0/bin:$PATH
                   cd libtorrent/bindings/python
                   python${{ matrix.python-version }} setup.py build_ext install --user --prefix=
 
             - name: build/install (MacOS)
               if: runner.os == 'macOS'
               run: |
+                  export PATH=$(brew --prefix)/opt/python@${{ matrix.python-version }}/bin:$HOME/boost_1_78_0/bin:$PATH
                   cd libtorrent/bindings/python
-                  export PATH=$(brew --prefix)/opt/python@${{ matrix.python-version }}/bin:$PATH
                   python${{ matrix.python-version }} setup.py build_ext install --install-lib $(brew --prefix)/lib/python${{ matrix.python-version }}/site-packages
 
             - name: Upload Python extension for Windows
