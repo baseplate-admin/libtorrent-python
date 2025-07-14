@@ -9,7 +9,7 @@ env:
     HOMEBREW_NO_AUTO_UPDATE: 1
 
 jobs:
-    test:
+    build:
         name: build
         runs-on: ${{ matrix.os }}
 
@@ -128,3 +128,23 @@ jobs:
                   cd libtorrent/bindings/python
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
                   python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+
+            - name: Upload build artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: python-bindings
+                  path: |
+                      libtorrent/bindings/python/dist/**/*.whl
+                      libtorrent/bindings/python/build/
+
+    release:
+        needs: build
+        runs-on: ubuntu-latest
+        if: startsWith(github.ref, 'refs/tags/v')
+        steps:
+            - name: Publish .whl to GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: dist/**/*.whl
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
