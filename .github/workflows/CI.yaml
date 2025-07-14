@@ -24,11 +24,6 @@ jobs:
                 os: [ubuntu-latest, macos-latest, windows-latest]
 
         steps:
-            - name: Checkout source
-              uses: actions/checkout@v4
-              with:
-                  submodules: recursive
-
             - name: Download source
               run: |
                   git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
