@@ -2,6 +2,8 @@ name: Python bindings
 
 on:
     push:
+        branches:
+            - '**'
         tags:
             - 'v*'
     pull_request:
@@ -14,26 +16,30 @@ env:
     HOMEBREW_NO_AUTO_UPDATE: 1
 
 jobs:
-    test:
-        name: build
+    build:
+        name: Build Bindings
         runs-on: ${{ matrix.os }}
-
         strategy:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, macos-latest, windows-latest]
 
         steps:
-            - name: Download source
+            - name: Checkout source
+              uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+
+            - name: Download libtorrent
               run: |
                   git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
 
-            - name: dependencies (MacOS)
+            - name: Dependencies (macOS)
               if: runner.os == 'macOS'
               run: |
                   cd libtorrent
                   brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
-                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+                  export PATH="$(brew --prefix)/opt/python@3.13/bin:$PATH"
 
             - name: Install Visual Studio 2019 Build Tools
               if: runner.os == 'Windows'
@@ -49,14 +55,14 @@ jobs:
                   toolset: 14.2
                   vsversion: '16.0'
 
-            - name: Install OpenSSL (vcpkg, win64)
+            - name: Install OpenSSL (Windows)
               if: runner.os == 'Windows'
               run: |
                   vcpkg install openssl:x64-windows
                   Remove-Item -Path "C:\Program Files\OpenSSL" -Force -Recurse -ErrorAction SilentlyContinue
                   New-Item -Path "C:\OpenSSL-Win64" -ItemType SymbolicLink -Value "C:\vcpkg\packages\openssl_x64-windows"
 
-            - name: Set OpenSSL Paths (Windows)
+            - name: Set OpenSSL Env Vars (Windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
@@ -66,14 +72,14 @@ jobs:
                   setx INCLUDE "C:\OpenSSL-Win64\include;%INCLUDE%" /M
                   setx LIB "C:\OpenSSL-Win64\lib;%LIB%" /M
 
-            - name: update package lists (linux)
+            - name: Dependencies (Linux)
               if: runner.os == 'Linux'
-              continue-on-error: true
               run: |
                   cd libtorrent
                   sudo apt update
+                  sudo apt install -y libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
 
-            - name: Setup ccache
+            - name: Setup ccache (Linux/macOS)
               if: runner.os != 'Windows'
               uses: Chocobo1/setup-ccache-action@v1
               with:
@@ -82,13 +88,7 @@ jobs:
                   ccache_options: |
                       max_size=500M
 
-            - name: dependencies (linux)
-              if: runner.os == 'Linux'
-              run: |
-                  cd libtorrent
-                  sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
-
-            - name: install boost (windows)
+            - name: Install Boost (Windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
@@ -96,15 +96,9 @@ jobs:
                   git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
                   cd boost
                   bootstrap.bat
-
-            - name: boost headers (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd libtorrent\boost
                   .\b2 headers
 
-            - name: build/install (windows)
+            - name: Build Bindings (Windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
@@ -113,64 +107,64 @@ jobs:
                   set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
                   set PATH=%BOOST_ROOT%;%PATH%
                   cd bindings\python
-                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
+                  python setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on"
 
-            - name: build no-deprecated (Linux)
+            - name: Build Bindings (Linux)
               if: runner.os == 'Linux'
               run: |
                   cd libtorrent/bindings/python
                   python3 setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
 
-            - name: build/install (Linux)
-              if: runner.os == 'Linux'
-              run: |
-                  cd libtorrent/bindings/python
-                  python3 setup.py build_ext install --user --prefix=
-
-            - name: build/install (MacOS)
+            - name: Build Bindings (macOS)
               if: runner.os == 'macOS'
               run: |
                   cd libtorrent/bindings/python
-                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
-                  python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+                  export PATH="$(brew --prefix)/opt/python@3.13/bin:$PATH"
+                  python3.13 setup.py build_ext
 
-            # Upload built artifacts for debugging
-            - name: Upload artifact (Windows)
-              if: runner.os == 'Windows'
+            - name: Upload Built Artifacts
               uses: actions/upload-artifact@v4
               with:
-                  name: python-bindings-windows
-                  path: libtorrent\bindings\python\build\lib.*
+                  name: bindings-${{ matrix.os }}
+                  path: |
+                      libtorrent/bindings/python/build/lib*/**
+                      libtorrent\bindings\python\build\lib*\*.pyd
+    release:
+        name: Release to GitHub
+        needs: build
+        runs-on: ubuntu-latest
+        if: startsWith(github.ref, 'refs/tags/v')
 
-            - name: Upload artifact (Linux)
-              if: runner.os == 'Linux'
-              uses: actions/upload-artifact@v4
+        steps:
+            - name: Download Linux build
+              uses: actions/download-artifact@v4
               with:
-                  name: python-bindings-linux
-                  path: libtorrent/bindings/python/build/lib.*
+                  name: bindings-ubuntu-latest
+                  path: artifacts/linux
 
-            - name: Upload artifact (macOS)
-              if: runner.os == 'macOS'
-              uses: actions/upload-artifact@v4
+            - name: Download macOS build
+              uses: actions/download-artifact@v4
               with:
-                  name: python-bindings-macos
-                  path: libtorrent/bindings/python/build/lib.*
+                  name: bindings-macos-latest
+                  path: artifacts/macos
 
-            # Publish to GitHub Release on tag
-            - name: Upload to GitHub Release (Windows)
-              if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Windows'
+            - name: Download Windows build
+              uses: actions/download-artifact@v4
+              with:
+                  name: bindings-windows-latest
+                  path: artifacts/windows
+
+            - name: Upload Linux artifacts to Release
               uses: softprops/action-gh-release@v2
               with:
-                  files: libtorrent\bindings\python\build\lib.*\*.pyd
+                  files: artifacts/linux/**/*.so
 
-            - name: Upload to GitHub Release (Linux)
-              if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Linux'
+            - name: Upload macOS artifacts to Release
               uses: softprops/action-gh-release@v2
               with:
-                  files: libtorrent/bindings/python/build/lib.*/**/*.so
+                  files: artifacts/macos/**/*.so
 
-            - name: Upload to GitHub Release (macOS)
-              if: startsWith(github.ref, 'refs/tags/') && runner.os == 'macOS'
+            - name: Upload Windows artifacts to Release
               uses: softprops/action-gh-release@v2
               with:
-                  files: libtorrent/bindings/python/build/lib.*/**/*.so
+                  files: artifacts/windows/**/*.pyd
