@@ -31,36 +31,8 @@ jobs:
                   python-version: ${{ matrix.python-version }}
 
             # === SCCACHE SETUP ===
-            - name: Install sccache (Linux/macOS)
-              if: runner.os != 'Windows'
-              run: |
-                  curl -L https://github.com/mozilla/sccache/releases/latest/download/sccache-x86_64-unknown-linux-musl.tar.gz | tar -xz
-                  sudo mv sccache /usr/local/bin/sccache
-
-            - name: Install sccache (Windows)
-              if: runner.os == 'Windows'
-              shell: powershell
-              run: |
-                  Invoke-WebRequest -Uri https://github.com/mozilla/sccache/releases/latest/download/sccache.exe -OutFile sccache.exe
-                  Move-Item sccache.exe "C:\Program Files\sccache.exe"
-
-            - name: Set sccache environment (Linux/macOS)
-              if: runner.os != 'Windows'
-              run: |
-                  echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-                  echo "SCCACHE_START_SERVER=1" >> $GITHUB_ENV
-                  echo "CC=sccache gcc" >> $GITHUB_ENV
-                  echo "CXX=sccache g++" >> $GITHUB_ENV
-
-            - name: Set sccache environment (Windows)
-              if: runner.os == 'Windows'
-              shell: powershell
-              run: |
-                  echo "C:\Program Files" | Out-File -Append -FilePath $env:GITHUB_PATH
-                  echo "RUSTC_WRAPPER=C:\Program Files\sccache.exe" | Out-File -Append -FilePath $env:GITHUB_ENV
-                  echo "SCCACHE_START_SERVER=1" | Out-File -Append -FilePath $env:GITHUB_ENV
-                  echo "CC=sccache cl" | Out-File -Append -FilePath $env:GITHUB_ENV
-                  echo "CXX=sccache cl" | Out-File -Append -FilePath $env:GITHUB_ENV
+            - name: Run sccache-cache
+              uses: mozilla-actions/sccache-action@v0.0.9
 
             # === OS-SPECIFIC DEPENDENCIES ===
             - name: dependencies (MacOS)
