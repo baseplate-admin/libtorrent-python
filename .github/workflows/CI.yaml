@@ -95,8 +95,7 @@ jobs:
                   cd boost_1_84_0
                   git submodule update --init --recursive
                   ./bootstrap.sh --with-libraries=python
-                  ./b2 install --prefix=$HOME/boost_1_84_0 --with-python --with-json  --with-system --with-thread --with-chrono --with-date_time --with-atomic --with-random -j$(nproc)
-
+                  ./b2 install --prefix=$HOME/boost_1_84_0 -j$(nproc)
             - name: Set Boost environment variables and add b2 to PATH (Linux)
               if: runner.os == 'Linux'
               run: |
@@ -112,7 +111,7 @@ jobs:
                   git clone --depth=1 --recurse-submodules --branch=boost-1.84.0 https://github.com/boostorg/boost.git boost_1_84_0
                   cd boost_1_84_0
                   ./bootstrap.sh --with-libraries=python
-                  ./b2 install --prefix=$HOME/boost_1_84_0 --with-python --with-json --with-system --with-thread --with-chrono --with-date_time --with-atomic --with-random -j$(sysctl -n hw.ncpu)
+                  ./b2 install --prefix=$HOME/boost_1_84_0 -j$(sysctl -n hw.ncpu)
 
             - name: Set Boost environment variables and add b2 to PATH (macOS)
               if: runner.os == 'macOS'
