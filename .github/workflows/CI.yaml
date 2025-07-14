@@ -29,11 +29,13 @@ jobs:
                   cd libtorrent
                   brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+
             - name: Install Visual Studio 2019 Build Tools
               if: runner.os == 'Windows'
               run: |
                 choco install visualstudio2019buildtools `
                   --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --quiet --norestart" ` -y
+
             - name: Set up MSVC 2019
               uses: ilammy/msvc-dev-cmd@v1
               if: runner.os == 'Windows'
@@ -47,17 +49,17 @@ jobs:
               run: |
                 vcpkg install openssl:x64-windows
                 Remove-Item -Path "C:\Program Files\OpenSSL" -Force -Recurse -ErrorAction SilentlyContinue
-                New-Item -Path "C:\Program Files\OpenSSL" -ItemType SymbolicLink -Value "C:\vcpkg\packages\openssl_x64-windows"
+                New-Item -Path "C:\OpenSSL-Win64" -ItemType SymbolicLink -Value "C:\vcpkg\packages\openssl_x64-windows"
 
             - name: Set OpenSSL Paths (Windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
-                setx OPENSSL_ROOT_DIR "C:\Program Files\OpenSSL" /M
-                setx OPENSSL_INCLUDE_DIR "C:\Program Files\OpenSSL\include" /M
-                setx OPENSSL_LIB_DIR "C:\Program Files\OpenSSL\lib" /M
-                setx INCLUDE "C:\Program Files\OpenSSL\include;%INCLUDE%" /M
-                setx LIB "C:\Program Files\OpenSSL\lib;%LIB%" /M
+                setx OPENSSL_ROOT_DIR "C:\OpenSSL-Win64" /M
+                setx OPENSSL_INCLUDE_DIR "C:\OpenSSL-Win64\include" /M
+                setx OPENSSL_LIB_DIR "C:\OpenSSL-Win64\lib" /M
+                setx INCLUDE "C:\OpenSSL-Win64\include;%INCLUDE%" /M
+                setx LIB "C:\OpenSSL-Win64\lib;%LIB%" /M
 
             - name: update package lists (linux)
               if: runner.os == 'Linux'
