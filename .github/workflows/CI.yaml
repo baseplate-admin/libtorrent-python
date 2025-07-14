@@ -166,20 +166,6 @@ jobs:
                   python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
 
             # ===== ARTIFACTS =====
-            - name: Upload Python extension for Windows
-              if: matrix.os == 'windows-latest'
-              uses: actions/upload-artifact@v4
-              with:
-                  name: python-bindings-windows-py${{ matrix.python-version }}
-                  path: libtorrent/bindings/python/build/**/*.pyd
-
-            - name: Upload Python extensions for Linux/macOS
-              if: matrix.os != 'windows-latest'
-              uses: actions/upload-artifact@v4
-              with:
-                  name: python-bindings-${{ matrix.os }}-py${{ matrix.python-version }}
-                  path: libtorrent/bindings/python/build/**/*.so
-
             - name: Upload build directory (all OS)
               uses: actions/upload-artifact@v4
               with:
