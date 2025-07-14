@@ -10,21 +10,25 @@ env:
 
 jobs:
     test:
-        name: Build Python bindings
+        name: build
         runs-on: ${{ matrix.os }}
 
         strategy:
             fail-fast: false
             matrix:
-                os: [ubuntu-latest, macos-latest, windows-latest]
+                os: [ubuntu-24.04, macos-latest, windows-latest]
 
         steps:
-            - name: Checkout source
-              uses: actions/checkout@v4
-
-            - name: Clone libtorrent
+            - name: Download source
               run: |
                   git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
+
+            - name: dependencies (MacOS)
+              if: runner.os == 'macOS'
+              run: |
+                  cd libtorrent
+                  brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
+                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
 
             - name: Install VS 2019 Build Tools
               if: runner.os == 'Windows'
@@ -33,22 +37,29 @@ jobs:
                   Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
                   refreshenv
 
-            - name: Install dependencies (Linux)
+            - name: update package lists (linux)
+              if: runner.os == 'Linux'
+              continue-on-error: true
+              run: |
+                  cd libtorrent
+                  sudo apt update
+
+            - name: Setup ccache
+              if: runner.os != 'Windows'
+              uses: Chocobo1/setup-ccache-action@v1
+              with:
+                  update_packager_index: false
+                  override_cache_key: ccache-python-${{ matrix.os }}-${{ github.base_ref }}
+                  ccache_options: |
+                      max_size=500M
+
+            - name: dependencies (linux)
               if: runner.os == 'Linux'
               run: |
-                  sudo apt update
-                  sudo apt install -y \
-                    libboost-tools-dev libboost-python-dev libboost-dev \
-                    libboost-system-dev python3 python3-setuptools libssl-dev
+                  cd libtorrent
+                  sudo apt install libboost-tools-dev libboost-python-dev libboost-dev libboost-system-dev python3 python3-setuptools libssl-dev
 
-            - name: Install dependencies (macOS)
-              if: runner.os == 'macOS'
-              run: |
-                  brew install boost boost-python3 boost-build \
-                               python@3.13 openssl@3 python-setuptools
-                  echo "$(brew --prefix)/opt/python@3.13/bin" >> $GITHUB_PATH
-
-            - name: Install Boost (Windows)
+            - name: install boost (windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
@@ -56,61 +67,40 @@ jobs:
                   git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
                   cd boost
                   bootstrap.bat
-                  cd ..
-                  set BOOST_ROOT=%CD%\boost
-                  set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
-                  set PATH=%BOOST_ROOT%;%PATH%
 
-            - name: Boost headers (Windows)
+            - name: boost headers (windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
                   cd libtorrent\boost
                   .\b2 headers
 
-            - name: Build & install Python bindings (Windows)
+            - name: build/install (windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
-                  cd libtorrent\bindings\python
+                  cd libtorrent
+                  set BOOST_ROOT=%CD%\boost
+                  set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
+                  set PATH=%BOOST_ROOT%;%PATH%
+                  cd bindings\python
                   python setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
 
-            - name: Upload artifact (Windows)
-              if: runner.os == 'Windows'
-              uses: actions/upload-artifact@v4
-              with:
-                  name: python-bindings-windows
-                  path: libtorrent\bindings\python\build
-
-            - name: Build no-deprecated (Linux)
+            - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
                   cd libtorrent/bindings/python
                   python3 setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
 
-            - name: Build & install Python bindings (Linux)
+            - name: build/install (Linux)
               if: runner.os == 'Linux'
               run: |
                   cd libtorrent/bindings/python
                   python3 setup.py build_ext install --user --prefix=
 
-            - name: Upload artifact (Linux)
-              if: runner.os == 'Linux'
-              uses: actions/upload-artifact@v4
-              with:
-                  name: python-bindings-linux
-                  path: libtorrent/bindings/python/build
-
-            - name: Build & install Python bindings (macOS)
+            - name: build/install (MacOS)
               if: runner.os == 'macOS'
               run: |
                   cd libtorrent/bindings/python
-                  python3.13 setup.py build_ext install \
-                    --install-lib $(brew --prefix)/lib/python3.13/site-packages
-
-            - name: Upload artifact (macOS)
-              if: runner.os == 'macOS'
-              uses: actions/upload-artifact@v4
-              with:
-                  name: python-bindings-macos
-                  path: libtorrent/bindings/python/build
+                  export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+                  python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
