@@ -33,8 +33,7 @@ jobs:
               if: runner.os == 'Windows'
               run: |
                 choco install visualstudio2019buildtools `
-                  --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --quiet --norestart" `
-                  -y
+                  --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --quiet --norestart" ` -y
             - name: Set up MSVC 2019
               uses: ilammy/msvc-dev-cmd@v1
               if: runner.os == 'Windows'
