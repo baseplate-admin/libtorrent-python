@@ -33,7 +33,7 @@ jobs:
               if: runner.os == 'macOS'
               run: |
                   cd libtorrent
-                  brew install boost-build boost boost-python3 python@${{ matrix.python-version }} openssl@3
+                  brew install boost-build boost boost-python3 python@${{ matrix.python-version }} openssl@3 python-setuptools
                   export PATH=$(brew --prefix)/opt/python@${{ matrix.python-version }}/bin:$PATH
 
             - name: Install Visual Studio 2019 Build Tools
