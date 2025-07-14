@@ -29,7 +29,11 @@ jobs:
                   cd libtorrent
                   brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
-           
+            - name: Install Visual Studio 2019 Build Tools
+              run: |
+                choco install visualstudio2019buildtools `
+                  --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --quiet --norestart" `
+                  -y
             - name: Set up MSVC 2019
               uses: ilammy/msvc-dev-cmd@v1
               if: runner.os == 'Windows'
