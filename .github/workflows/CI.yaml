@@ -94,7 +94,7 @@ jobs:
                   git clone --branch=boost-1.84.0 https://github.com/boostorg/boost.git boost_1_84_0
                   cd boost_1_84_0
                   git submodule update --init --recursive
-                  ./bootstrap.sh --with-libraries=python
+                  ./bootstrap.sh
                   ./b2 install --prefix=$HOME/boost_1_84_0 -j$(nproc)
                   echo "$HOME/boost_1_84_0" >> $GITHUB_PATH
 
@@ -104,7 +104,7 @@ jobs:
                   cd $HOME
                   git clone --depth=1 --recurse-submodules --branch=boost-1.84.0 https://github.com/boostorg/boost.git boost_1_84_0
                   cd boost_1_84_0
-                  ./bootstrap.sh --with-libraries=python
+                  ./bootstrap.sh 
                   ./b2 install --prefix=$HOME/boost_1_84_0 -j$(sysctl -n hw.ncpu)
                   echo "$HOME/boost_1_84_0" >> $GITHUB_PATH
 
@@ -142,7 +142,7 @@ jobs:
                   export PATH=$BOOST_ROOT/bin:$PATH
                   cd libtorrent/bindings/python
                   python${{ matrix.python-version }} setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
-            
+
             - name: build/install (Linux)
               if: runner.os == 'Linux'
               run: |
