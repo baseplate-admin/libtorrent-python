@@ -87,46 +87,46 @@ jobs:
                   ccache_options: |
                       max_size=500M
 
-            - name: Install Boost 1.78.0 from GitHub (Ubuntu)
+            - name: Install Boost 1.83.0 from GitHub (Ubuntu)
               if: runner.os == 'Linux'
               run: |
                   cd $HOME
-                  git clone --depth=1  --recurse-submodules --branch=boost-1.78.0 https://github.com/boostorg/boost.git boost_1_78_0
-                  cd boost_1_78_0
+                  git clone --depth=1 --recurse-submodules --branch=boost-1.83.0 https://github.com/boostorg/boost.git boost_1_83_0
+                  cd boost_1_83_0
                   ./bootstrap.sh --with-libraries=python
-                  ./b2 install --prefix=$HOME/boost_1_78_0 --with-python -j$(nproc)
+                  ./b2 install --prefix=$HOME/boost_1_83_0 --with-python -j$(nproc)
 
             - name: Set Boost environment variables and add b2 to PATH (Linux)
               if: runner.os == 'Linux'
               run: |
-                  echo "BOOST_ROOT=$HOME/boost_1_78_0" >> $GITHUB_ENV
-                  echo "BOOST_INCLUDEDIR=$HOME/boost_1_78_0/include" >> $GITHUB_ENV
-                  echo "BOOST_LIBRARYDIR=$HOME/boost_1_78_0/lib" >> $GITHUB_ENV
-                  echo "$HOME/boost_1_78_0" >> $GITHUB_PATH
+                  echo "BOOST_ROOT=$HOME/boost_1_83_0" >> $GITHUB_ENV
+                  echo "BOOST_INCLUDEDIR=$HOME/boost_1_83_0/include" >> $GITHUB_ENV
+                  echo "BOOST_LIBRARYDIR=$HOME/boost_1_83_0/lib" >> $GITHUB_ENV
+                  echo "$HOME/boost_1_83_0" >> $GITHUB_PATH
 
-            - name: Install Boost from source (macOS)
+            - name: Install Boost 1.83.0 from GitHub (macOS)
               if: runner.os == 'macOS'
               run: |
                   cd $HOME
-                  git clone --depth=1 --recurse-submodules --branch=boost-1.78.0 https://github.com/boostorg/boost.git boost_1_78_0
-                  cd boost_1_78_0
+                  git clone --depth=1 --recurse-submodules --branch=boost-1.83.0 https://github.com/boostorg/boost.git boost_1_83_0
+                  cd boost_1_83_0
                   ./bootstrap.sh --with-libraries=python
-                  ./b2 install --prefix=$HOME/boost_1_78_0 --with-python -j$(sysctl -n hw.ncpu)
+                  ./b2 install --prefix=$HOME/boost_1_83_0 --with-python -j$(sysctl -n hw.ncpu)
 
             - name: Set Boost environment variables and add b2 to PATH (macOS)
               if: runner.os == 'macOS'
               run: |
-                  echo "BOOST_ROOT=$HOME/boost_1_78_0" >> $GITHUB_ENV
-                  echo "BOOST_INCLUDEDIR=$HOME/boost_1_78_0/include" >> $GITHUB_ENV
-                  echo "BOOST_LIBRARYDIR=$HOME/boost_1_78_0/lib" >> $GITHUB_ENV
-                  echo "$HOME/boost_1_78_0" >> $GITHUB_PATH
+                  echo "BOOST_ROOT=$HOME/boost_1_83_0" >> $GITHUB_ENV
+                  echo "BOOST_INCLUDEDIR=$HOME/boost_1_83_0/include" >> $GITHUB_ENV
+                  echo "BOOST_LIBRARYDIR=$HOME/boost_1_83_0/lib" >> $GITHUB_ENV
+                  echo "$HOME/boost_1_83_0" >> $GITHUB_PATH
 
             - name: install boost (windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
                   cd libtorrent
-                  git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.78.0 https://github.com/boostorg/boost.git
+                  git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.83.0 https://github.com/boostorg/boost.git
                   cd boost
                   bootstrap.bat
 
@@ -151,21 +151,21 @@ jobs:
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
-                  export PATH=$HOME/boost_1_78_0/bin:$PATH
+                  export PATH=$HOME/boost_1_83_0/bin:$PATH
                   cd libtorrent/bindings/python
                   python${{ matrix.python-version }} setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
 
             - name: build/install (Linux)
               if: runner.os == 'Linux'
               run: |
-                  export PATH=$HOME/boost_1_78_0/bin:$PATH
+                  export PATH=$HOME/boost_1_83_0/bin:$PATH
                   cd libtorrent/bindings/python
                   python${{ matrix.python-version }} setup.py build_ext install --user --prefix=
 
             - name: build/install (MacOS)
               if: runner.os == 'macOS'
               run: |
-                  export PATH=$(brew --prefix)/opt/python@${{ matrix.python-version }}/bin:$HOME/boost_1_78_0/bin:$PATH
+                  export PATH=$(brew --prefix)/opt/python@${{ matrix.python-version }}/bin:$HOME/boost_1_83_0/bin:$PATH
                   cd libtorrent/bindings/python
                   python${{ matrix.python-version }} setup.py build_ext install --install-lib $(brew --prefix)/lib/python${{ matrix.python-version }}/site-packages
 
