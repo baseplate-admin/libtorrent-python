@@ -33,7 +33,7 @@ jobs:
               if: runner.os == 'macOS'
               run: |
                   cd libtorrent
-                  brew install boost-build boost boost-python3 python@${{ matrix.python-version }} openssl@3 python-setuptools
+                  brew install python@${{ matrix.python-version }} openssl@3 python-setuptools
                   export PATH=$(brew --prefix)/opt/python@${{ matrix.python-version }}/bin:$PATH
 
             - name: Install Visual Studio 2019 Build Tools
@@ -99,6 +99,23 @@ jobs:
 
             - name: Set Boost environment variables and add b2 to PATH (Linux)
               if: runner.os == 'Linux'
+              run: |
+                  echo "BOOST_ROOT=$HOME/boost_1_78_0" >> $GITHUB_ENV
+                  echo "BOOST_INCLUDEDIR=$HOME/boost_1_78_0/include" >> $GITHUB_ENV
+                  echo "BOOST_LIBRARYDIR=$HOME/boost_1_78_0/lib" >> $GITHUB_ENV
+                  echo "$HOME/boost_1_78_0/bin" >> $GITHUB_PATH
+
+            - name: Install Boost from source (macOS)
+              if: runner.os == 'macOS'
+              run: |
+                  cd $HOME
+                  git clone --depth=1 --recurse-submodules --branch=boost-1.78.0 https://github.com/boostorg/boost.git boost_1_78_0
+                  cd boost_1_78_0
+                  ./bootstrap.sh --with-libraries=python
+                  ./b2 install --prefix=$HOME/boost_1_78_0 --with-python -j$(sysctl -n hw.ncpu)
+
+            - name: Set Boost environment variables and add b2 to PATH (macOS)
+              if: runner.os == 'macOS'
               run: |
                   echo "BOOST_ROOT=$HOME/boost_1_78_0" >> $GITHUB_ENV
                   echo "BOOST_INCLUDEDIR=$HOME/boost_1_78_0/include" >> $GITHUB_ENV
