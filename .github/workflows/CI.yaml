@@ -26,11 +26,11 @@ jobs:
               run: |
                   git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
 
-            - name: Setup MSBuild (Windows)
+            - name: Install VS 2019 Build Tools
               if: runner.os == 'Windows'
-              uses: microsoft/setup-msbuild@v2
-              with:
-                  vs-version: '16'
+              run: |
+                  choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended --includeOptional" -y
+                  refreshenv
 
             - name: Install dependencies (Linux)
               if: runner.os == 'Linux'
