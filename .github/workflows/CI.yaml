@@ -97,12 +97,13 @@ jobs:
                   ./bootstrap.sh --with-libraries=python
                   ./b2 install --prefix=$HOME/boost_1_78_0 --with-python -j$(nproc)
 
-            - name: Set Boost environment variables (Linux)
+            - name: Set Boost environment variables and add b2 to PATH (Linux)
               if: runner.os == 'Linux'
               run: |
                   echo "BOOST_ROOT=$HOME/boost_1_78_0" >> $GITHUB_ENV
                   echo "BOOST_INCLUDEDIR=$HOME/boost_1_78_0/include" >> $GITHUB_ENV
                   echo "BOOST_LIBRARYDIR=$HOME/boost_1_78_0/lib" >> $GITHUB_ENV
+                  echo "$HOME/boost_1_78_0/bin" >> $GITHUB_PATH
 
             - name: install boost (windows)
               if: runner.os == 'Windows'
