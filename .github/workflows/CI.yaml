@@ -2,7 +2,12 @@ name: Python bindings
 
 on:
     push:
+        tags:
+            - 'v*'
     pull_request:
+
+permissions:
+    contents: write
 
 env:
     HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
@@ -19,6 +24,11 @@ jobs:
                 os: [ubuntu-latest, macos-latest, windows-latest]
 
         steps:
+            - name: Checkout source
+              uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+
             - name: Download source
               run: |
                   git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
@@ -33,33 +43,33 @@ jobs:
             - name: Install Visual Studio 2019 Build Tools
               if: runner.os == 'Windows'
               run: |
-                choco install visualstudio2019buildtools `
-                  --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --quiet --norestart" ` -y
+                  choco install visualstudio2019buildtools `
+                    --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --quiet --norestart" ` -y
 
             - name: Set up MSVC 2019
               uses: ilammy/msvc-dev-cmd@v1
               if: runner.os == 'Windows'
               with:
                   arch: x64
-                  toolset: 14.2 
+                  toolset: 14.2
                   vsversion: '16.0'
 
             - name: Install OpenSSL (vcpkg, win64)
               if: runner.os == 'Windows'
               run: |
-                vcpkg install openssl:x64-windows
-                Remove-Item -Path "C:\Program Files\OpenSSL" -Force -Recurse -ErrorAction SilentlyContinue
-                New-Item -Path "C:\OpenSSL-Win64" -ItemType SymbolicLink -Value "C:\vcpkg\packages\openssl_x64-windows"
+                  vcpkg install openssl:x64-windows
+                  Remove-Item -Path "C:\Program Files\OpenSSL" -Force -Recurse -ErrorAction SilentlyContinue
+                  New-Item -Path "C:\OpenSSL-Win64" -ItemType SymbolicLink -Value "C:\vcpkg\packages\openssl_x64-windows"
 
             - name: Set OpenSSL Paths (Windows)
               if: runner.os == 'Windows'
               shell: cmd
               run: |
-                setx OPENSSL_ROOT_DIR "C:\OpenSSL-Win64" /M
-                setx OPENSSL_INCLUDE_DIR "C:\OpenSSL-Win64\include" /M
-                setx OPENSSL_LIB_DIR "C:\OpenSSL-Win64\lib" /M
-                setx INCLUDE "C:\OpenSSL-Win64\include;%INCLUDE%" /M
-                setx LIB "C:\OpenSSL-Win64\lib;%LIB%" /M
+                  setx OPENSSL_ROOT_DIR "C:\OpenSSL-Win64" /M
+                  setx OPENSSL_INCLUDE_DIR "C:\OpenSSL-Win64\include" /M
+                  setx OPENSSL_LIB_DIR "C:\OpenSSL-Win64\lib" /M
+                  setx INCLUDE "C:\OpenSSL-Win64\include;%INCLUDE%" /M
+                  setx LIB "C:\OpenSSL-Win64\lib;%LIB%" /M
 
             - name: update package lists (linux)
               if: runner.os == 'Linux'
@@ -128,3 +138,44 @@ jobs:
                   cd libtorrent/bindings/python
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
                   python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
+
+            # Upload built artifacts for debugging
+            - name: Upload artifact (Windows)
+              if: runner.os == 'Windows'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: python-bindings-windows
+                  path: libtorrent\bindings\python\build\lib.*
+
+            - name: Upload artifact (Linux)
+              if: runner.os == 'Linux'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: python-bindings-linux
+                  path: libtorrent/bindings/python/build/lib.*
+
+            - name: Upload artifact (macOS)
+              if: runner.os == 'macOS'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: python-bindings-macos
+                  path: libtorrent/bindings/python/build/lib.*
+
+            # Publish to GitHub Release on tag
+            - name: Upload to GitHub Release (Windows)
+              if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Windows'
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: libtorrent\bindings\python\build\lib.*\*.pyd
+
+            - name: Upload to GitHub Release (Linux)
+              if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Linux'
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: libtorrent/bindings/python/build/lib.*/**/*.so
+
+            - name: Upload to GitHub Release (macOS)
+              if: startsWith(github.ref, 'refs/tags/') && runner.os == 'macOS'
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: libtorrent/bindings/python/build/lib.*/**/*.so
