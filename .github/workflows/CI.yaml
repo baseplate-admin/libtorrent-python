@@ -188,9 +188,18 @@ jobs:
             - name: Display downloaded files
               run: ls -R artifacts
 
-            - name: Upload to GitHub Release
+            - name: Zip each artifact folder
+              run: |
+                  mkdir zipped
+                  for dir in artifacts/*; do
+                    name=$(basename "$dir")
+                    zip -r "zipped/${name}.zip" "$dir"
+                  done
+                  ls -lh zipped/
+
+            - name: Upload zipped artifacts to GitHub Release
               uses: softprops/action-gh-release@v1
               with:
-                  files: artifacts/**/*
+                  files: zipped/*.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
