@@ -31,6 +31,7 @@ jobs:
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
 
             - name: Add msbuild to PATH
+              if: runner.os == 'Windows'
               uses: microsoft/setup-msbuild@v2
               with:
                   vs-version: '16.x'
