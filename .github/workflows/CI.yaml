@@ -36,7 +36,7 @@ jobs:
               with:
                   arch: x64
                   toolset: 14.2 
-                  vs-version: '16.0'
+                  vsversion: '16.0'
 
             - name: Install OpenSSL (vcpkg, win64)
               if: runner.os == 'Windows'
