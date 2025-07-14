@@ -30,6 +30,11 @@ jobs:
                   brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
 
+            - name: Add msbuild to PATH
+              uses: microsoft/setup-msbuild@v2
+              with:
+                  vs-version: '16.x'
+
             - name: update package lists (linux)
               if: runner.os == 'Linux'
               continue-on-error: true
