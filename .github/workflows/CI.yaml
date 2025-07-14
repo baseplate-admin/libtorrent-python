@@ -7,8 +7,10 @@ on:
 env:
     HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
     HOMEBREW_NO_AUTO_UPDATE: 1
+    OPENSSL_USE_STATIC_LIBS: 1
 permissions:
     contents: write
+
 jobs:
     build:
         name: build on ${{ matrix.os }} with Python ${{ matrix.python-version }}
@@ -143,7 +145,7 @@ jobs:
                   set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
                   set PATH=%BOOST_ROOT%;%PATH%
                   cd bindings\python
-                  py -${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
+                  py -${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on link=static" install --user --prefix=
 
             - name: build/install (Linux)
               if: runner.os == 'Linux'
@@ -153,7 +155,7 @@ jobs:
                   export BOOST_BUILD_PATH=$BOOST_ROOT/tools/build
                   export PATH=$BOOST_ROOT:$PATH
                   cd bindings/python
-                  python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
+                  python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on link=static" install --user --prefix=
 
             - name: build/install (macOS)
               if: runner.os == 'macOS'
@@ -164,7 +166,7 @@ jobs:
                   export BOOST_BUILD_PATH=$BOOST_ROOT/tools/build
                   export PATH=$BOOST_ROOT:$PATH
                   cd bindings/python
-                  python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
+                  python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on link=static" install --user --prefix=
 
             # ===== ARTIFACTS =====
             - name: Upload build directory (all OS)
