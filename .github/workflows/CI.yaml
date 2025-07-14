@@ -96,12 +96,6 @@ jobs:
                   git submodule update --init --recursive
                   ./bootstrap.sh --with-libraries=python
                   ./b2 install --prefix=$HOME/boost_1_84_0 -j$(nproc)
-            - name: Set Boost environment variables and add b2 to PATH (Linux)
-              if: runner.os == 'Linux'
-              run: |
-                  echo "BOOST_ROOT=$HOME/boost_1_84_0" >> $GITHUB_ENV
-                  echo "BOOST_INCLUDEDIR=$HOME/boost_1_84_0/include" >> $GITHUB_ENV
-                  echo "BOOST_LIBRARYDIR=$HOME/boost_1_84_0/lib" >> $GITHUB_ENV
                   echo "$HOME/boost_1_84_0" >> $GITHUB_PATH
 
             - name: Install Boost 1.84.0 from GitHub (macOS)
@@ -112,13 +106,6 @@ jobs:
                   cd boost_1_84_0
                   ./bootstrap.sh --with-libraries=python
                   ./b2 install --prefix=$HOME/boost_1_84_0 -j$(sysctl -n hw.ncpu)
-
-            - name: Set Boost environment variables and add b2 to PATH (macOS)
-              if: runner.os == 'macOS'
-              run: |
-                  echo "BOOST_ROOT=$HOME/boost_1_84_0" >> $GITHUB_ENV
-                  echo "BOOST_INCLUDEDIR=$HOME/boost_1_84_0/include" >> $GITHUB_ENV
-                  echo "BOOST_LIBRARYDIR=$HOME/boost_1_84_0/lib" >> $GITHUB_ENV
                   echo "$HOME/boost_1_84_0" >> $GITHUB_PATH
 
             - name: install boost (windows)
@@ -147,14 +134,15 @@ jobs:
                   set PATH=%BOOST_ROOT%;%PATH%
                   cd bindings\python
                   py -${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
-
             - name: build no-deprecated (Linux)
               if: runner.os == 'Linux'
               run: |
-                  export PATH=$HOME/boost_1_84_0/bin:$PATH
+                  export BOOST_ROOT=$HOME/boost_1_84_0
+                  export BOOST_BUILD_PATH=$BOOST_ROOT/tools/build
+                  export PATH=$BOOST_ROOT/bin:$PATH
                   cd libtorrent/bindings/python
                   python${{ matrix.python-version }} setup.py build_ext --b2-args "deprecated-functions=off webtorrent=on"
-
+            
             - name: build/install (Linux)
               if: runner.os == 'Linux'
               run: |
