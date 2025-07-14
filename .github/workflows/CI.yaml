@@ -34,7 +34,7 @@ jobs:
               if: runner.os == 'Windows'
               with:
                   arch: x64
-                  vsversion: '16.0'
+                  vsversion: '2019'
 
             - name: update package lists (linux)
               if: runner.os == 'Linux'
