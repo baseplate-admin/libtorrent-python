@@ -31,8 +31,28 @@ jobs:
                   python-version: ${{ matrix.python-version }}
 
             # === SCCACHE SETUP ===
-            - name: Run sccache-cache
+            - name: Setup sccache
               uses: mozilla-actions/sccache-action@v0.0.9
+
+            - name: Configure sccache environment (Linux/macOS)
+              if: runner.os != 'Windows'
+              run: |
+                  echo "CC=sccache gcc" >> $GITHUB_ENV
+                  echo "CXX=sccache g++" >> $GITHUB_ENV
+                  echo "SCCACHE_CACHE_SIZE=2G" >> $GITHUB_ENV
+                  echo "SCCACHE_DIR=${{ runner.temp }}/.sccache" >> $GITHUB_ENV
+
+            - name: Configure sccache environment (Windows)
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                  echo "CC=sccache cl.exe" >> $env:GITHUB_ENV
+                  echo "CXX=sccache cl.exe" >> $env:GITHUB_ENV
+                  echo "SCCACHE_CACHE_SIZE=2G" >> $env:GITHUB_ENV
+                  echo "SCCACHE_DIR=$env:TEMP\\.sccache" >> $env:GITHUB_ENV
+
+            - name: Show sccache version
+              run: sccache --version
 
             # === OS-SPECIFIC DEPENDENCIES ===
             - name: dependencies (MacOS)
@@ -164,9 +184,7 @@ jobs:
                   python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on" install --user --prefix=
 
             - name: Show sccache stats
-              run: |
-                  sccache --show-stats || true
-              shell: bash
+              run: sccache --show-stats || true
 
             # === ARTIFACTS ===
             - name: Upload build directory (all OS)
