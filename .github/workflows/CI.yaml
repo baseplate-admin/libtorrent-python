@@ -129,13 +129,17 @@ jobs:
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
                   python3.13 setup.py build_ext install --install-lib $(brew --prefix)/lib/python3.13/site-packages
 
-            - name: Upload build artifacts
+            - name: Upload dist wheels
               uses: actions/upload-artifact@v4
               with:
-                  name: python-bindings-{{matrix.os}}
-                  path: |
-                      libtorrent/bindings/python/dist/**/*.whl
-                      libtorrent/bindings/python/build/
+                  name: python-bindings-{{ matrix.os }}-dist
+                  path: libtorrent/bindings/python/dist/**/*.whl
+
+            - name: Upload build folder
+              uses: actions/upload-artifact@v4
+              with:
+                  name: python-bindings-{{ matrix.os }}-build
+                  path: libtorrent/bindings/python/build/
 
     release:
         needs: build
