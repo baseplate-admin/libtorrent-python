@@ -171,3 +171,25 @@ jobs:
               with:
                   name: python-bindings-${{ matrix.os }}-py${{ matrix.python-version }}-build
                   path: libtorrent/bindings/python/build/
+
+    release:
+        name: Upload Release Artifacts
+        needs: build
+        if: github.event_name == 'release'
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Download all artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: artifacts
+
+            - name: Display downloaded files
+              run: ls -R artifacts
+
+            - name: Upload to GitHub Release
+              uses: softprops/action-gh-release@v1
+              with:
+                  files: artifacts/**/*
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
