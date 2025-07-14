@@ -34,7 +34,7 @@ jobs:
               if: runner.os == 'Windows'
               uses: microsoft/setup-msbuild@v2
               with:
-                  vs-version: '16.x'
+                  vs-version: '16'
 
             - name: update package lists (linux)
               if: runner.os == 'Linux'
