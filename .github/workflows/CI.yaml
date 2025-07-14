@@ -29,6 +29,12 @@ jobs:
                   cd libtorrent
                   brew install boost-build boost boost-python3 python@3.13 openssl@3 python-setuptools
                   export PATH=$(brew --prefix)/opt/python@3.13/bin:$PATH
+            - name: Install VS 2019 Build Tools
+              if: runner.os == 'Windows'
+              run: |
+                  choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended --includeOptional" -y
+                  Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+                  refreshenv
 
             - uses: ilammy/msvc-dev-cmd@v1
               if: runner.os == 'Windows'
