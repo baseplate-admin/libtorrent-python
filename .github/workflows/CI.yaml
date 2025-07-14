@@ -91,8 +91,9 @@ jobs:
               if: runner.os == 'Linux'
               run: |
                   cd $HOME
-                  git clone --depth=1 --recurse-submodules --branch=boost-1.83.0 https://github.com/boostorg/boost.git boost_1_83_0
+                  git clone --branch=boost-1.83.0 https://github.com/boostorg/boost.git boost_1_83_0
                   cd boost_1_83_0
+                  git submodule update --init --recursive
                   ./bootstrap.sh --with-libraries=python
                   ./b2 install --prefix=$HOME/boost_1_83_0 --with-python -j$(nproc)
 
