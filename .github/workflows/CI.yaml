@@ -34,7 +34,7 @@ jobs:
               if: runner.os == 'Windows'
               with:
                   arch: x64
-                  toolset: '16.xx'
+                  toolset: '16.0'
 
             - name: update package lists (linux)
               if: runner.os == 'Linux'
