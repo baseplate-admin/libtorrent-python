@@ -23,10 +23,32 @@ jobs:
                 python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
 
         steps:
+            - name: Checkout repo with patches
+              uses: actions/checkout@v3
+              with:
+                fetch-depth: 0  # Optional: fetch full history for patches if needed
+
             - name: Download source
               run: |
                   git clone https://github.com/arvidn/libtorrent.git --depth=1 --recurse-submodules --branch master
 
+            - name: Apply patches (Linux/macOS)
+              if: runner.os != 'Windows'
+              run: |
+                for patchfile in patches/*.patch; do
+                  echo "Applying $patchfile"
+                  patch -p1 -d libtorrent < "$patchfile"
+                done
+
+            - name: Apply patches (Windows)
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                Get-ChildItem patches\*.patch | ForEach-Object {
+                  Write-Host "Applying $($_.FullName)"
+                  git apply --directory=libtorrent $_.FullName
+                }
+  
             - name: Setup Python
               uses: actions/setup-python@v4
               with:

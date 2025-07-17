@@ -1,0 +1,16 @@
+diff --git a/src/torrent.cpp b/src/torrent.cpp
+index 9d046ab9a..a608187bd 100644
+--- a/src/torrent.cpp
++++ b/src/torrent.cpp
+@@ -8998,10 +8998,7 @@ namespace {
+ 				{
+ 					++seeds;
+ 				}
+-				else
+-				{
+-					TORRENT_ASSERT(!p.is_seed());
+-				}
++				
+ 			}
+ 
+ 			for (auto const& j : p.request_queue())
