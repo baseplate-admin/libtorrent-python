@@ -1,3 +1,8 @@
+# This patch removes an assert that checks `!p.is_seed()` in non-seed peers.
+# Reason: The check was redundant or caused false positives in edge cases.
+# Check: https://github.com/arvidn/libtorrent/issues/7988
+
+
 diff --git a/src/torrent.cpp b/src/torrent.cpp
 index 9d046ab9a..a608187bd 100644
 --- a/src/torrent.cpp
