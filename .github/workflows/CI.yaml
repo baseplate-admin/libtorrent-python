@@ -26,7 +26,7 @@ jobs:
             - name: Checkout repo with patches
               uses: actions/checkout@v3
               with:
-                fetch-depth: 0  # Optional: fetch full history for patches if needed
+                  fetch-depth: 0
 
             - name: Download source
               run: |
@@ -35,31 +35,24 @@ jobs:
             - name: Apply patches (Linux/macOS)
               if: runner.os != 'Windows'
               run: |
-                for patchfile in patches/*.patch; do
-                  echo "Applying $patchfile"
-                  patch -p1 -d libtorrent < "$patchfile"
-                done
+                  for patchfile in patches/*.patch; do
+                    echo "Applying $patchfile"
+                    patch -p1 -d libtorrent < "$patchfile"
+                  done
 
             - name: Apply patches (Windows)
               if: runner.os == 'Windows'
               shell: pwsh
               run: |
-                Get-ChildItem patches\*.patch | ForEach-Object {
-                  Write-Host "Applying $($_.FullName)"
-                  git apply --directory=libtorrent $_.FullName
-                }
-  
+                  Get-ChildItem patches\*.patch | ForEach-Object {
+                    Write-Host "Applying $($_.FullName)"
+                    git apply --directory=libtorrent $_.FullName
+                  }
+
             - name: Setup Python
               uses: actions/setup-python@v4
               with:
                   python-version: ${{ matrix.python-version }}
-
-            - name: dependencies (MacOS)
-              if: runner.os == 'macOS'
-              run: |
-                  cd libtorrent
-                  brew install python@${{ matrix.python-version }} openssl@3 python-setuptools
-                  export PATH=$(brew --prefix)/opt/python@${{ matrix.python-version }}/bin:$PATH
 
             - name: Install Visual Studio 2019 Build Tools
               if: runner.os == 'Windows'
@@ -75,12 +68,12 @@ jobs:
                   toolset: 14.2
                   vsversion: '16.0'
 
-            - name: Install OpenSSL (vcpkg, win64)
+            - name: Install OpenSSL (vcpkg, static, win64)
               if: runner.os == 'Windows'
               run: |
-                  vcpkg install openssl:x64-windows
-                  Remove-Item -Path "C:\Program Files\OpenSSL" -Force -Recurse -ErrorAction SilentlyContinue
-                  New-Item -Path "C:\OpenSSL-Win64" -ItemType SymbolicLink -Value "C:\vcpkg\packages\openssl_x64-windows"
+                  vcpkg install openssl:x64-windows-static
+                  Remove-Item -Path "C:\OpenSSL-Win64" -Force -Recurse -ErrorAction SilentlyContinue
+                  New-Item -Path "C:\OpenSSL-Win64" -ItemType SymbolicLink -Value "C:\vcpkg\packages\openssl_x64-windows-static"
 
             - name: Set OpenSSL Paths (Windows)
               if: runner.os == 'Windows'
@@ -92,16 +85,32 @@ jobs:
                   setx INCLUDE "C:\OpenSSL-Win64\include;%INCLUDE%" /M
                   setx LIB "C:\OpenSSL-Win64\lib;%LIB%" /M
 
+            - name: dependencies (macOS)
+              if: runner.os == 'macOS'
+              run: |
+                  brew install python@${{ matrix.python-version }} python-setuptools cmake make
+                  brew unlink openssl@3 || true
+                  curl -LO https://www.openssl.org/source/openssl-3.2.1.tar.gz
+                  tar -xf openssl-3.2.1.tar.gz
+                  cd openssl-3.2.1
+                  ./Configure darwin64-x86_64-cc no-shared --prefix=$HOME/openssl-static
+                  make -j$(sysctl -n hw.logicalcpu)
+                  make install_sw
+                  echo "OPENSSL_ROOT_DIR=$HOME/openssl-static" >> $GITHUB_ENV
+                  echo "LDFLAGS=-L$HOME/openssl-static/lib -static" >> $GITHUB_ENV
+                  echo "CPPFLAGS=-I$HOME/openssl-static/include" >> $GITHUB_ENV
+
+            - name: Set OpenSSL flags (Linux)
+              if: runner.os == 'Linux'
+              run: |
+                  sudo apt update
+                  sudo apt install libssl-dev build-essential cmake python3-dev -y
+                  echo "LDFLAGS=-static -lssl -lcrypto -ldl -pthread" >> $GITHUB_ENV
+                  echo "CPPFLAGS=" >> $GITHUB_ENV
+
             - name: Upgrade pip and setuptools
               run: |
                   python -m pip install --upgrade pip setuptools wheel
-
-            - name: update package lists (linux)
-              if: runner.os == 'Linux'
-              continue-on-error: true
-              run: |
-                  cd libtorrent
-                  sudo apt update
 
             - name: Setup ccache
               if: runner.os != 'Windows'
@@ -113,49 +122,17 @@ jobs:
                       max_size=500M
 
             # ===== BOOST STEPS =====
-            - name: install boost (Linux)
-              if: runner.os == 'Linux'
+            - name: install boost
               run: |
                   cd libtorrent
                   git clone --depth=1 --recurse-submodules --branch=boost-1.88.0 https://github.com/boostorg/boost.git
                   cd boost
-                  ./bootstrap.sh
+                  ./bootstrap.sh || ./bootstrap.bat
 
-            - name: boost headers (Linux)
-              if: runner.os == 'Linux'
+            - name: boost headers
               run: |
                   cd libtorrent/boost
-                  ./b2 headers
-
-            - name: install boost (macOS)
-              if: runner.os == 'macOS'
-              run: |
-                  cd libtorrent
-                  git clone --depth=1 --recurse-submodules --branch=boost-1.88.0 https://github.com/boostorg/boost.git
-                  cd boost
-                  ./bootstrap.sh
-
-            - name: boost headers (macOS)
-              if: runner.os == 'macOS'
-              run: |
-                  cd libtorrent/boost
-                  ./b2 headers
-
-            - name: install boost (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd libtorrent
-                  git clone --depth=1 --recurse-submodules -j10 --branch=boost-1.88.0 https://github.com/boostorg/boost.git
-                  cd boost
-                  bootstrap.bat
-
-            - name: boost headers (windows)
-              if: runner.os == 'Windows'
-              shell: cmd
-              run: |
-                  cd libtorrent\boost
-                  .\b2 headers
+                  ./b2 headers || .\b2 headers
 
             # ===== BUILD STEPS =====
             - name: build/install (windows)
@@ -167,7 +144,7 @@ jobs:
                   set BOOST_BUILD_PATH=%BOOST_ROOT%\tools\build
                   set PATH=%BOOST_ROOT%;%PATH%
                   cd bindings\python
-                  py -${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on link=static" install --user --prefix=
+                  py -${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on openssl-link=static link=static" install --user --prefix=
 
             - name: build/install (Linux)
               if: runner.os == 'Linux'
@@ -177,7 +154,7 @@ jobs:
                   export BOOST_BUILD_PATH=$BOOST_ROOT/tools/build
                   export PATH=$BOOST_ROOT:$PATH
                   cd bindings/python
-                  python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on link=static" install --user --prefix=
+                  python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on openssl-link=static link=static" install --user --prefix=
 
             - name: build/install (macOS)
               if: runner.os == 'macOS'
@@ -188,7 +165,7 @@ jobs:
                   export BOOST_BUILD_PATH=$BOOST_ROOT/tools/build
                   export PATH=$BOOST_ROOT:$PATH
                   cd bindings/python
-                  python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on link=static" install --user --prefix=
+                  python${{ matrix.python-version }} setup.py build_ext --b2-args "asserts=on invariant-checks=full webtorrent=on openssl-link=static link=static" install --user --prefix=
 
             # ===== ARTIFACTS =====
             - name: Upload build directory (all OS)
